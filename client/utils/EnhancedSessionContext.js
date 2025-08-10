@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useMemo, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import AsyncStorageUtils from './AsyncStorage';
 import ApiService from '../services/ApiService';
@@ -143,7 +143,7 @@ export const EnhancedSessionProvider = ({ children }) => {
   }, []);
 
   // Safe navigation with better timing and checks
-  const safeNavigate = (path, retryCount = 0) => {
+  const safeNavigate = useCallback((path, retryCount = 0) => {
     const maxRetries = 3;
     const baseDelay = 200; // Increased base delay
     const retryDelay = baseDelay * (retryCount + 1);
@@ -169,9 +169,9 @@ export const EnhancedSessionProvider = ({ children }) => {
         }
       }
     }, retryDelay);
-  };
+  }, []);
 
-  const initializeAuth = async () => {
+  const initializeAuth = useCallback(async () => {
     try {
       console.log('[Auth] Initializing authentication...');
       dispatch({ type: AUTH_ACTIONS.SET_LOADING });
@@ -237,9 +237,9 @@ export const EnhancedSessionProvider = ({ children }) => {
         payload: { error: Helpers.handleError(error) },
       });
     }
-  };
+  }, []);
 
-  const signIn = async (email, password, options = {}) => {
+  const signIn = useCallback(async (email, password, options = {}) => {
     // Prevent double execution
     if (isSigningInRef.current) {
       console.log('[Auth] Sign in already in progress, ignoring duplicate call');
@@ -312,9 +312,9 @@ export const EnhancedSessionProvider = ({ children }) => {
     } finally {
       isSigningInRef.current = false;
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     // Prevent double execution
     if (isSigningOutRef.current) {
       console.log('[Auth] Sign out already in progress, ignoring duplicate call');
@@ -369,9 +369,9 @@ export const EnhancedSessionProvider = ({ children }) => {
         isSigningOutRef.current = false;
       }, 1000);
     }
-  };
+  }, []);
 
-  const register = async (email, password) => {
+  const register = useCallback(async (email, password) => {
     try {
       console.log('[Auth] Registering user:', email);
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: { isAuth: true } });
@@ -404,12 +404,12 @@ export const EnhancedSessionProvider = ({ children }) => {
       });
       throw new Error(errorMessage);
     }
-  };
+  }, []);
 
-  const setPreferences = async (prefs) => {
+  const setPreferences = useCallback(async (prefs) => {
     try {
       console.log('[Auth] Updating preferences:', prefs);
-      dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: { isAuth: true } });
+      // ✅ REMOVED: dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: { isAuth: true } });
 
       // If user is authenticated, save to server
       if (state.status === AUTH_STATES.AUTHENTICATED && state.user?.signed_session_id) {
@@ -438,11 +438,11 @@ export const EnhancedSessionProvider = ({ children }) => {
       });
       throw new Error(errorMessage);
     }
-  };
+  }, [state.status, state.user?.signed_session_id]);
 
-  const clearError = () => {
+  const clearError = useCallback(() => {
     dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
-  };
+  }, []);
 
   // Computed values
   const contextValue = useMemo(() => ({
@@ -452,7 +452,7 @@ export const EnhancedSessionProvider = ({ children }) => {
     isGuest: state.status === AUTH_STATES.GUEST,
     session: state.status === AUTH_STATES.AUTHENTICATED ? state.user : null,
     
-    // Actions
+    // Actions - now stable references
     signIn,
     signOut,
     register,
@@ -461,7 +461,7 @@ export const EnhancedSessionProvider = ({ children }) => {
     
     // Utilities
     guestManager: GuestManager,
-  }), [state]);
+  }), [state, signIn, signOut, register, setPreferences, clearError]);
 
   return (
     <EnhancedSessionContext.Provider value={contextValue}>

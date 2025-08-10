@@ -4,7 +4,7 @@ const path = require('path');
 const dotenv = require('dotenv');
 
 // Construct the absolute path to the .env file (one level up from backend)
-const envPath = path.resolve(__dirname, '.env');
+const envPath = path.resolve(__dirname, '../.env');
 console.log('Attempting to load .env file from:', envPath);
 
 // Load .env file
@@ -104,6 +104,18 @@ const dbOperations = {
         .execute('spLogoutUser');
     } catch (err) {
       throw new Error(err.message || 'Failed to logout');
+    }
+  },
+
+    getUserPreferences: async (userId) => {
+    try {
+      const request = pool.request();
+      const result = await request
+        .input('UserId', sql.UniqueIdentifier, userId)
+        .execute('spGetUserPreferences');
+      return result.recordset[0];
+    } catch (err) {
+      throw new Error(err.message || 'Failed to fetch user preferences');
     }
   },
 

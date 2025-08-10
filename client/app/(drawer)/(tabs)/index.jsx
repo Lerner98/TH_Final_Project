@@ -1,4 +1,4 @@
-// ===== UPDATED HOME SCREEN =====
+// ===== UPDATED HOME SCREEN WITH ALL CHANGES =====
 // app/(drawer)/(tabs)/index.jsx
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
@@ -8,6 +8,7 @@ import useThemeStore from '../../../stores/ThemeStore';
 import { useRouter } from 'expo-router';
 import Constants from '../../../utils/Constants';
 import { FontAwesome } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native'; // ✅ NEW IMPORT
 
 const HOME = Constants.HOME;
 
@@ -42,6 +43,24 @@ const HomeScreen = () => {
     loadGuestStats();
   }, [isAuthenticated, guestManager]);
 
+  // ✅ NEW: Auto-refresh guest stats when screen focuses
+  useFocusEffect(
+    useCallback(() => {
+      const refreshGuestStats = async () => {
+        if (!isAuthenticated) {
+          try {
+            const stats = await guestManager.getUsageStats();
+            setGuestStats(stats);
+          } catch (error) {
+            console.error('Failed to refresh guest stats:', error);
+          }
+        }
+      };
+      
+      refreshGuestStats();
+    }, [isAuthenticated, guestManager])
+  );
+
   const safeTranslate = useCallback((key, fallback = '') => {
     const value = t(key);
     return typeof value === 'string' ? value : fallback;
@@ -68,9 +87,27 @@ const HomeScreen = () => {
     }
   }, [isAuthenticated, guestManager, router]);
 
-  const handleTextVoicePress = useCallback(() => {
-    if (isMounted.current) checkGuestLimitAndNavigate('/text-voice', 'text');
-  }, [checkGuestLimitAndNavigate]);
+  // ✅ UPDATED: Text/Voice button now only checks text limits for guests (no voice)
+  const handleTextVoicePress = useCallback(async () => {
+    if (!isMounted.current) return;
+    
+    if (isAuthenticated) {
+      router.navigate('/text-voice');
+      return;
+    }
+
+    // ✅ For guests: Only check text limits (they can't use voice anyway)
+    const textLimitCheck = await guestManager.checkTranslationLimit('text');
+    
+    if (textLimitCheck.allowed) {
+      router.navigate('/text-voice');
+    } else {
+      const shouldUpgrade = await guestManager.promptUpgrade('text');
+      if (shouldUpgrade) {
+        router.push('/(auth)/register');
+      }
+    }
+  }, [isAuthenticated, guestManager, router]);
 
   const handleFilePress = useCallback(() => {
     if (isMounted.current) {
@@ -101,16 +138,36 @@ const HomeScreen = () => {
             {safeTranslate('welcomeMessage', 'Welcome to the app')}
           </Text>
           
-          {/* Guest Usage Summary */}
+          {/*  UPDATED: Guest Usage Summary - Now clickable and calculates from individual stats */}
           {!isAuthenticated && Object.keys(guestStats).length > 0 && (
-            <View style={styles.guestStatsContainer}>
+            <Pressable 
+              style={styles.guestStatsContainer}
+              onPress={() => router.push('/profile')} // ✅ Navigate to profile/settings
+              accessibilityLabel="View detailed guest usage"
+              accessibilityRole="button"
+            >
               <Text style={[styles.guestStatsTitle, { color: isDarkMode ? HOME.DESCRIPTION_TEXT_COLOR_DARK : HOME.DESCRIPTION_TEXT_COLOR_LIGHT }]}>
-                Your Usage Today
+                Your Guest Usage Today
               </Text>
               <Text style={[styles.guestStatsText, { color: isDarkMode ? HOME.DESCRIPTION_TEXT_COLOR_DARK : HOME.DESCRIPTION_TEXT_COLOR_LIGHT }]}>
-                {guestStats.total?.current || 0}/{guestStats.total?.limit || 10} translations used
+                {/*  Calculate total used from individual stats (exclude daily/total/file/voice) */}
+                {Object.entries(guestStats)
+                  .filter(([type]) => !['daily', 'total', 'file', 'voice'].includes(type))
+                  .reduce((total, [_, stats]) => total + (stats.current || 0), 0)} translations used
               </Text>
-              {(guestStats.total?.current || 0) >= (guestStats.total?.limit || 10) && (
+              
+              {/*  Add indicator that it's clickable */}
+              <View style={styles.clickableIndicator}>
+                <Text style={[styles.clickableText, { color: isDarkMode ? HOME.DESCRIPTION_TEXT_COLOR_DARK : HOME.DESCRIPTION_TEXT_COLOR_LIGHT }]}>
+                  Tap for details
+                </Text>
+                <FontAwesome name="chevron-right" size={12} color={isDarkMode ? HOME.DESCRIPTION_TEXT_COLOR_DARK : HOME.DESCRIPTION_TEXT_COLOR_LIGHT} />
+              </View>
+
+              {/*  Show upgrade prompt if any feature has no remaining uses */}
+              {Object.entries(guestStats)
+                .filter(([type]) => !['daily', 'total', 'file', 'voice'].includes(type))
+                .some(([_, stats]) => (stats.remaining || 0) === 0) && (
                 <Pressable
                   style={[styles.upgradePrompt, { backgroundColor: Constants.COLORS.PRIMARY }]}
                   onPress={() => router.push('/(auth)/register')}
@@ -120,7 +177,7 @@ const HomeScreen = () => {
                   </Text>
                 </Pressable>
               )}
-            </View>
+            </Pressable>
           )}
         </View>
 
@@ -138,6 +195,7 @@ const HomeScreen = () => {
             <Text style={styles.gridButtonText}>
               {safeTranslate('textVoiceTranslation', 'Text/Voice')}
             </Text>
+            {/* ✅ UPDATED: For guests: Only show text remaining (no voice) */}
             {!isAuthenticated && guestStats.text && (
               <Text style={styles.usageIndicator}>
                 {guestStats.text.remaining || 0} left
@@ -241,6 +299,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: 'rgba(0,0,0,0.1)',
     alignItems: 'center',
+    //  NEW: Add visual feedback that it's clickable
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   guestStatsTitle: {
     fontSize: 16,
@@ -250,6 +311,17 @@ const styles = StyleSheet.create({
   guestStatsText: {
     fontSize: 14,
     marginBottom: Constants.SPACING.SMALL,
+  },
+  //  NEW: Styles for clickable indicator
+  clickableIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Constants.SPACING.SMALL,
+  },
+  clickableText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginRight: Constants.SPACING.SMALL,
   },
   upgradePrompt: {
     paddingVertical: Constants.SPACING.SMALL,

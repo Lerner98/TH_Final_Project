@@ -10,9 +10,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import Constants from '../../utils/Constants';
 import Helpers from '../../utils/Helpers';
 import { useTheme } from '../../utils/ThemeContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome } from '@expo/vector-icons';
-import ApiService from '../../services/ApiService';
 
 const { INPUT, SAVES, ERROR_MESSAGES } = Constants;
 
@@ -22,7 +20,7 @@ const TranslationItem = React.memo(({ item, isDarkMode, onDelete, t, locale }) =
   const onDeletePress = () => {
     if (isDeleting) return;
     setIsDeleting(true);
-    onDelete(item.id, () => setIsDeleting(false));
+    onDelete(item.id, item.type, () => setIsDeleting(false));
   };
 
   const getTypeIcon = () => {
@@ -76,10 +74,24 @@ const SavesScreen = () => {
   const { session } = useEnhancedSession();
   const { isDarkMode } = useTheme();
   const [toastVisible, setToastVisible] = useState(false);
+  const router = useRouter();
+
+  // Use the store for guest translations, but fetch server data directly for logged-in users
+  const {
+    guestTranslations,
+    clearGuestTranslations,
+    removeTranslation,
+    initializeGuestTranslations
+  } = useTranslationStore();
+
+  // Local state for server translations (to handle all types)
+  const [serverTranslations, setServerTranslations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [translations, setTranslations] = useState([]);
-  const router = useRouter();
+
+  // Combine all translations for display
+  const isGuest = !session?.signed_session_id;
+  const allTranslations = isGuest ? guestTranslations : serverTranslations;
 
   useFocusEffect(
     useCallback(() => {
@@ -88,37 +100,35 @@ const SavesScreen = () => {
       const loadTranslations = async () => {
         if (!isMounted) return;
 
-        if (!session?.signed_session_id) {
-          // Load guest translations from AsyncStorage
+        if (isGuest) {
+          console.log('📱 Loading guest translations...');
           try {
-            const guestData = await AsyncStorage.getItem('guestTranslations');
-            if (isMounted) {
-              const guestTranslations = guestData ? JSON.parse(guestData) : [];
-              setTranslations(guestTranslations);
-              console.log('📱 Guest translations loaded:', guestTranslations.length);
-            }
+            await initializeGuestTranslations();
           } catch (err) {
-            console.error('Failed to load guest translations:', err);
-            if (isMounted) setTranslations([]);
+            console.error('❌ Failed to load guest translations:', err);
           }
           return;
         }
 
-        // Load logged-in user translations
+        // Load logged-in user translations (ALL TYPES)
         if (isMounted) setIsLoading(true);
 
         try {
-          console.log('📡 Fetching translations from server...');
+          console.log('📡 Fetching translations from User Data Service...');
+          console.log('📡 Using User Data API URL:', Constants.USER_DATA_API_URL || `${Constants.API_URL}:3003`);
 
+          // Fetch from the actual User Data Service endpoints
+          const userDataBaseUrl = Constants.USER_DATA_API_URL || 'http://192.168.1.26:3003';
+          
           const [textResponse, voiceResponse] = await Promise.all([
-            fetch(`${Constants.API_URL}/translations/text`, {
+            fetch(`${userDataBaseUrl}/translations/text`, {
               method: 'GET',
               headers: {
                 'Authorization': `Bearer ${session.signed_session_id}`,
                 'Content-Type': 'application/json',
               },
             }),
-            fetch(`${Constants.API_URL}/translations/voice`, {
+            fetch(`${userDataBaseUrl}/translations/voice`, {
               method: 'GET',
               headers: {
                 'Authorization': `Bearer ${session.signed_session_id}`,
@@ -127,51 +137,78 @@ const SavesScreen = () => {
             }),
           ]);
 
+          console.log('📡 User Data Service responses:', {
+            textStatus: textResponse.status,
+            voiceStatus: voiceResponse.status,
+          });
+
           if (!textResponse.ok || !voiceResponse.ok) {
-            throw new Error('Failed to fetch translations');
+            throw new Error(`User Data Service failed: text(${textResponse.status}) voice(${voiceResponse.status})`);
           }
 
-          const textTranslations = await textResponse.json();
-          const voiceTranslations = await voiceResponse.json();
+          const [textTranslations, voiceTranslations] = await Promise.all([
+            textResponse.json(),
+            voiceResponse.json(),
+          ]);
 
-          console.log('📥 Fetched translations:', {
-            textCount: textTranslations.length,
-            voiceCount: voiceTranslations.length,
-            textTranslations,
-            voiceTranslations,
+          const allTranslations = [...(textTranslations || []), ...(voiceTranslations || [])];
+          
+          console.log('📥 Fetched from User Data Service:', {
+            textCount: textTranslations?.length || 0,
+            voiceCount: voiceTranslations?.length || 0,
+            total: allTranslations.length,
           });
+
+          console.log('📥 Total translations before deduplication:', allTranslations.length);
 
           // Deduplicate translations by ID and content
           const uniqueTranslations = [];
           const seenIds = new Set();
           const seenContent = new Set();
 
-          [...textTranslations, ...voiceTranslations].forEach((translation) => {
-            const contentKey = `${translation.original_text}|${translation.translated_text}|${translation.fromLang}|${translation.toLang}|${translation.type}`;
+          allTranslations.forEach((translation, index) => {
+            if (!translation) {
+              console.warn('📥 Null translation at index:', index);
+              return;
+            }
 
-            if (!seenIds.has(translation.id) && !seenContent.has(contentKey)) {
-              uniqueTranslations.push(translation);
-              seenIds.add(translation.id);
+            const contentKey = `${translation.original_text || ''}|${translation.translated_text || ''}|${translation.fromLang || ''}|${translation.toLang || ''}|${translation.type || 'unknown'}`;
+            const translationId = translation.id || translation._id || `temp_${index}`;
+
+            if (!seenIds.has(translationId) && !seenContent.has(contentKey)) {
+              // Ensure translation has required properties
+              const processedTranslation = {
+                id: translationId,
+                original_text: translation.original_text || translation.originalText || '',
+                translated_text: translation.translated_text || translation.translatedText || '',
+                type: translation.type || 'text',
+                created_at: translation.created_at || translation.createdAt || translation.timestamp || new Date().toISOString(),
+                fromLang: translation.fromLang || translation.from_lang || 'auto',
+                toLang: translation.toLang || translation.to_lang || 'en',
+                ...translation
+              };
+              
+              uniqueTranslations.push(processedTranslation);
+              seenIds.add(translationId);
               seenContent.add(contentKey);
             } else {
               console.warn('Duplicate translation detected:', {
-                id: translation.id,
+                id: translationId,
                 contentKey,
-                type: translation.type,
-                source: seenIds.has(translation.id) ? 'ID' : 'Content',
+                type: translation.type || 'unknown',
+                source: seenIds.has(translationId) ? 'ID' : 'Content',
               });
             }
           });
 
           if (isMounted) {
-            setTranslations(uniqueTranslations);
-            console.log('✅ Loaded translations:', uniqueTranslations.length);
+            setServerTranslations(uniqueTranslations);
+            console.log('✅ Loaded ALL translations:', uniqueTranslations.length);
           }
         } catch (err) {
           console.error('❌ Failed to load translations:', err);
           if (isMounted) {
             setError(t('error') + ': ' + Helpers.handleError(err));
-            setToastVisible(true);
           }
         } finally {
           if (isMounted) setIsLoading(false);
@@ -183,11 +220,11 @@ const SavesScreen = () => {
       return () => {
         isMounted = false;
       };
-    }, [session?.signed_session_id, t])
+    }, [session?.signed_session_id, isGuest, initializeGuestTranslations, t])
   );
 
-  const handleDeleteTranslation = useCallback(async (id, onComplete) => {
-    console.log('handleDeleteTranslation called with id:', id);
+  const handleDeleteTranslation = useCallback(async (id, type, onComplete) => {
+    console.log('handleDeleteTranslation called with id:', id, 'type:', type);
     Alert.alert(
       t('deleteTranslation', { defaultValue: 'Delete Translation' }),
       t('areYouSure', { defaultValue: 'Are you sure?' }),
@@ -202,27 +239,33 @@ const SavesScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              if (session?.signed_session_id) {
-                // Delete from server
-                const response = await ApiService.delete(`/translations/delete/${id}`, session.signed_session_id, { timeout: 10000 });
-                if (!response.success) {
-                  throw new Error(response.error || ERROR_MESSAGES.SAVES_DELETE_SERVER_FAILED);
+              if (isGuest) {
+                // Use store method for guest translations
+                await removeTranslation(id, type, true, null);
+                console.log('✅ Guest translation deleted');
+              } else {
+                // Delete from User Data Service
+                const userDataBaseUrl = Constants.USER_DATA_API_URL || 'http://192.168.1.26:3003';
+                const response = await fetch(`${userDataBaseUrl}/translations/delete/${id}`, {
+                  method: 'DELETE',
+                  headers: {
+                    'Authorization': `Bearer ${session.signed_session_id}`,
+                    'Content-Type': 'application/json',
+                  },
+                });
+
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  throw new Error(`Delete failed: ${response.status} ${errorText}`);
                 }
 
-                // Update local state
-                setTranslations(prev => prev.filter(item => item.id !== id));
-                console.log('✅ Translation deleted from server');
-              } else {
-                // Delete from guest storage
-                const updatedTranslations = translations.filter(item => item.id !== id);
-                setTranslations(updatedTranslations);
-                await AsyncStorage.setItem('guestTranslations', JSON.stringify(updatedTranslations));
-                console.log('✅ Guest translation deleted');
+                // Update local server translations state
+                setServerTranslations(prev => prev.filter(item => item.id !== id));
+                console.log('✅ Server translation deleted');
               }
             } catch (err) {
               console.error('❌ Delete failed:', err);
               setError(t('error') + ': ' + Helpers.handleError(err));
-              setToastVisible(true);
             } finally {
               onComplete();
             }
@@ -230,7 +273,7 @@ const SavesScreen = () => {
         },
       ]
     );
-  }, [session, translations, t]);
+  }, [session?.signed_session_id, isGuest, removeTranslation, t]);
 
   const handleClearTranslations = useCallback(async () => {
     Alert.alert(
@@ -243,9 +286,13 @@ const SavesScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              if (session?.signed_session_id) {
-                // Clear from server
-                const response = await fetch(`${Constants.API_URL}/translations`, {
+              if (isGuest) {
+                await clearGuestTranslations();
+                console.log('✅ Guest translations cleared');
+              } else {
+                // Clear ALL translations from User Data Service
+                const userDataBaseUrl = Constants.USER_DATA_API_URL || 'http://192.168.1.26:3003';
+                const response = await fetch(`${userDataBaseUrl}/translations`, {
                   method: 'DELETE',
                   headers: {
                     'Authorization': `Bearer ${session.signed_session_id}`,
@@ -254,32 +301,37 @@ const SavesScreen = () => {
                 });
 
                 if (!response.ok) {
-                  throw new Error('Failed to clear translations');
+                  const errorText = await response.text();
+                  throw new Error(`Clear failed: ${response.status} ${errorText}`);
                 }
 
-                setTranslations([]);
-                console.log('✅ All translations cleared from server');
-              } else {
-                // Clear guest storage
-                setTranslations([]);
-                await AsyncStorage.setItem('guestTranslations', JSON.stringify([]));
-                console.log('✅ Guest translations cleared');
+                setServerTranslations([]);
+                console.log('✅ All User Data Service translations cleared');
               }
             } catch (err) {
               console.error('❌ Clear failed:', err);
               setError(t('error') + ': ' + Helpers.handleError(err));
-              setToastVisible(true);
             }
           },
         },
       ]
     );
-  }, [session, t]);
+  }, [session?.signed_session_id, isGuest, clearGuestTranslations, t]);
+
+  // Show error toast when error changes
+  React.useEffect(() => {
+    if (error) {
+      setToastVisible(true);
+    }
+  }, [error]);
 
   console.log('📋 Displaying translations:', {
-    count: translations.length,
-    isLoggedIn: !!session,
-    hasTranslations: translations.length > 0,
+    count: allTranslations.length,
+    isLoggedIn: !isGuest,
+    hasTranslations: allTranslations.length > 0,
+    guestCount: guestTranslations.length,
+    serverCount: serverTranslations.length,
+    breakdown: isGuest ? 'guest-only' : 'server-only',
   });
 
   return (
@@ -288,11 +340,11 @@ const SavesScreen = () => {
         <ActivityIndicator size="large" color={isDarkMode ? '#fff' : Constants.COLORS.PRIMARY} style={styles.loading} accessibilityLabel="Loading translations" />
       )}
       <FlatList
-        data={translations}
+        data={allTranslations}
         renderItem={({ item }) => (
           <TranslationItem item={item} isDarkMode={isDarkMode} onDelete={handleDeleteTranslation} t={t} locale={locale} />
         )}
-        keyExtractor={(item, index) => `${item.id || index}`}
+        keyExtractor={(item, index) => `${item.id || index}-${item.type || 'unknown'}`}
         ListHeaderComponent={
           <View style={styles.header}>
             <View style={styles.headerRow}>
@@ -310,7 +362,7 @@ const SavesScreen = () => {
               </Text>
               <View style={styles.placeholder} />
             </View>
-            {translations.length > 0 && (
+            {allTranslations.length > 0 && (
               <Pressable
                 onPress={handleClearTranslations}
                 style={({ pressed }) => [

@@ -1,4 +1,4 @@
-// ===== UPDATED FILE SCREEN WITH ENHANCED AUTH =====
+// ===== FIXED FILE SCREEN FOR MICROSERVICES =====
 // app/(drawer)/(tabs)/file.jsx
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, Alert } from 'react-native';
@@ -7,10 +7,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useTranslation } from '../../../utils/TranslationContext';
-import { useEnhancedSession } from '../../../utils/EnhancedSessionContext'; // ✅ FIXED
+import { useEnhancedSession } from '../../../utils/EnhancedSessionContext';
 import useTranslationStore from '../../../stores/TranslationStore';
-import TranslationService from '../../../services/TranslationService';
-import FileService from '../../../services/FileService';
 import LanguageSearch from '../../../components/LanguageSearch';
 import Toast from '../../../components/Toast';
 import Constants from '../../../utils/Constants';
@@ -28,17 +26,21 @@ const { INPUT, BUTTON, FILE, ERROR_MESSAGES } = Constants;
  */
 const FileTranslationScreen = () => {
   const { t } = useTranslation();
-  const { session, isAuthenticated, preferences } = useEnhancedSession(); // ✅ FIXED
+  const { session, isAuthenticated, preferences, signOut } = useEnhancedSession();
   const { addTextTranslation } = useTranslationStore();
   const { isDarkMode } = useTheme();
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [targetLang, setTargetLang] = useState(preferences?.defaultToLang || ''); // ✅ FIXED
+  const [targetLang, setTargetLang] = useState(preferences?.defaultToLang || '');
   const [translatedFileUri, setTranslatedFileUri] = useState(null);
   const [fileFormat, setFileFormat] = useState('');
   const router = useRouter();
+
+  // ✅ FIXED: Use correct microservice URLs
+  const TRANSLATION_API_URL = Constants.TRANSLATION_API_URL; // Port 3002
+  const USER_DATA_API_URL = Constants.USER_DATA_API_URL;     // Port 3003
 
   // ✅ ADDED: Update target language when preferences change
   useEffect(() => {
@@ -58,6 +60,7 @@ const FileTranslationScreen = () => {
     }
   }, [t]);
 
+  // ✅ FIXED: Updated file processing to use microservices
   const pickDocument = useCallback(async () => {
     setError('');
     setIsLoading(true);
@@ -96,10 +99,14 @@ const FileTranslationScreen = () => {
       setFileName(file.name);
       const ext = file.name.split('.').pop().toLowerCase();
 
-      const fileContent = await FileService.extractText(file.uri, session.signed_session_id);
-      const translated = await TranslationService.translateFile(fileContent, targetLang, session.signed_session_id);
+      // ✅ FIXED: Extract text using Translation microservice (port 3002)
+      const fileContent = await extractTextFromFile(file.uri, file.mimeType);
+      
+      // ✅ FIXED: Translate using Translation microservice (port 3002)
+      const translated = await translateText(fileContent, targetLang);
 
-      await addTextTranslation({
+      // ✅ FIXED: Save using User Data microservice (port 3003)
+      await saveTranslation({
         id: Date.now().toString(),
         fromLang: 'auto',
         toLang: targetLang,
@@ -107,13 +114,14 @@ const FileTranslationScreen = () => {
         translated_text: translated,
         created_at: new Date().toISOString(),
         type: 'file',
-      }, false, session.signed_session_id); // ✅ FIXED: Always save to server for authenticated users
+      });
 
+      // ✅ FIXED: Generate document using Translation microservice (port 3002)
       let path = '';
       let mimeType = 'text/plain';
 
       if (ext === 'docx') {
-        const buffer = await FileService.generateDocx(translated, session.signed_session_id);
+        const buffer = await generateDocx(translated);
         path = `${FileSystem.documentDirectory}translated_${Date.now()}.docx`;
         await FileSystem.writeAsStringAsync(path, Buffer.from(buffer).toString('base64'), {
           encoding: FileSystem.EncodingType.Base64,
@@ -128,12 +136,140 @@ const FileTranslationScreen = () => {
 
       setTranslatedFileUri(path);
     } catch (err) {
-      setError(`${safeTranslate('error', 'Error')}: ${Helpers.handleError(err)}`);
+      const errorMessage = Helpers.handleError(err);
+      if (errorMessage.includes('Invalid or expired session') && session) {
+        await signOut();
+        setError(`${safeTranslate('error', 'Error')}: Your session has expired. Please log in again.`);
+      } else {
+        setError(`${safeTranslate('error', 'Error')}: ${errorMessage}`);
+      }
       setToastVisible(true);
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, targetLang, addTextTranslation, router, safeTranslate, session]); // ✅ FIXED
+  }, [isAuthenticated, targetLang, router, safeTranslate, session, signOut]);
+
+  // ✅ FIXED: Extract text using Translation microservice
+  const extractTextFromFile = async (fileUri, mimeType) => {
+    try {
+      // Read file as base64
+      const fileData = await FileSystem.readAsStringAsync(fileUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Create the proper base64 string with data URL format
+      const base64String = `data:${mimeType};base64,${fileData}`;
+
+      const response = await fetch(`${TRANSLATION_API_URL}/extract-text`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.signed_session_id}`,
+        },
+        body: JSON.stringify({
+          uri: base64String,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to extract text from file');
+      }
+
+      return result.text || '';
+    } catch (err) {
+      throw new Error(`File extraction failed: ${err.message}`);
+    }
+  };
+
+  // ✅ FIXED: Translate text using Translation microservice
+  const translateText = async (text, targetLanguage) => {
+    try {
+      const response = await fetch(`${TRANSLATION_API_URL}/translate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.signed_session_id}`,
+        },
+        body: JSON.stringify({
+          text: text,
+          targetLang: targetLanguage,
+          sourceLang: 'auto',
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to translate text');
+      }
+
+      return result.translatedText || '';
+    } catch (err) {
+      throw new Error(`Translation failed: ${err.message}`);
+    }
+  };
+
+  // ✅ FIXED: Generate document using Translation microservice
+  const generateDocx = async (text) => {
+    try {
+      const response = await fetch(`${TRANSLATION_API_URL}/generate-docx`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.signed_session_id}`,
+        },
+        body: JSON.stringify({
+          text: text,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate document');
+      }
+
+      const buffer = await response.arrayBuffer();
+      return buffer;
+    } catch (err) {
+      throw new Error(`Document generation failed: ${err.message}`);
+    }
+  };
+
+  // ✅ FIXED: Save translation using User Data microservice
+  const saveTranslation = async (translation) => {
+    try {
+      const response = await fetch(`${USER_DATA_API_URL}/translations/text`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.signed_session_id}`,
+        },
+        body: JSON.stringify({
+          fromLang: translation.fromLang,
+          toLang: translation.toLang,
+          original_text: translation.original_text,
+          translated_text: translation.translated_text,
+          type: translation.type,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to save translation');
+      }
+
+      // Update store
+      const { recentTextTranslations } = useTranslationStore.getState();
+      useTranslationStore.setState({
+        recentTextTranslations: [{ ...translation, id: result.id || translation.id }, ...recentTextTranslations.slice(0, 4)]
+      });
+
+      return result;
+    } catch (err) {
+      console.warn('Failed to save translation:', err.message);
+      // Don't throw here - file processing should continue even if save fails
+    }
+  };
 
   const downloadTranslatedFile = useCallback(async () => {
     if (translatedFileUri) {

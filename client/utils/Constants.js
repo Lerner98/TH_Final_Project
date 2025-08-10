@@ -1,9 +1,11 @@
 const Constants = {
   // 🔌 WebSocket URL for ASL Translation
   WEBSOCKET_URL: 'ws://192.168.1.26:8000/asl-ws',
-  // 🌐 API Base URL
-  API_URL: 'http://192.168.1.26:3000', // Hardcoded to the working URL
-
+  // 🌐 API Base URL - network IP for React Native
+  AUTH_API_URL: 'http://192.168.1.26:3001',
+  TRANSLATION_API_URL: 'http://192.168.1.26:3002',
+  USER_DATA_API_URL: 'http://192.168.1.26:3003',
+  
   // ⚙️ API Configuration
   API_TIMEOUT: 10000, // API request timeout in milliseconds (10 seconds)
   TOAST_DURATION: 3000, // Toast visibility duration in milliseconds (3 seconds)

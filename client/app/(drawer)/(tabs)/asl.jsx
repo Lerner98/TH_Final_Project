@@ -5,7 +5,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Pressable, Dimensions } from
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import * as FileSystem from 'expo-file-system';
 import { useTranslation } from '../../../utils/TranslationContext';
-import { useEnhancedSession } from '../../../utils/EnhancedSessionContext'; // ✅ FIXED
+import { useEnhancedSession } from '../../../utils/EnhancedSessionContext'; 
 import useTranslationStore from '../../../stores/TranslationStore';
 import Toast from '../../../components/Toast';
 import Constants from '../../../utils/Constants';
@@ -33,7 +33,8 @@ const { WEBSOCKET_URL, COLORS, FONT_SIZES, SPACING } = Constants;
 
 const ASLTranslationScreen = () => {
   const { t } = useTranslation();
-  const { session, isAuthenticated, guestManager } = useEnhancedSession(); // ✅ FIXED
+  const { session, isAuthenticated, guestManager } = useEnhancedSession(); 
+  const [remainingTranslations, setRemainingTranslations] = useState(null);
   const { addTextTranslation } = useTranslationStore();
   const { isDarkMode } = useThemeStore();
   const [translatedText, setTranslatedText] = useState('');
@@ -263,6 +264,30 @@ const ASLTranslationScreen = () => {
     setWsConnected(false);
   }, []);
 
+  // Monitor guest usage for the ASL tranlsaitons
+  useEffect(() => {
+  if (!isAuthenticated && isStreaming) {
+    const checkUsage = async () => {
+      const stats = await guestManager.getUsageStats();
+      const aslStats = stats.asl;
+      if (aslStats) {
+        setRemainingTranslations(aslStats.remaining);
+        
+        // ✅ PROACTIVE WARNING: Warn when getting close to limit
+        if (aslStats.remaining <= 2 && aslStats.remaining > 0) {
+          setError(`Only ${aslStats.remaining} ASL translations remaining!`);
+          setToastVisible(true);
+        }
+      }
+    };
+    
+    checkUsage();
+    // Check every 5 seconds during streaming
+    const interval = setInterval(checkUsage, 5000);
+    return () => clearInterval(interval);
+  }
+  }, [isAuthenticated, isStreaming, guestManager]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -274,6 +299,30 @@ const ASLTranslationScreen = () => {
     setTranslatedText('');
     setConfidence(0);
   };
+
+  useEffect(() => {
+  // Reset ASL state when authentication status changes
+  // This prevents old streaming state from persisting between sessions
+  console.log('Auth status changed - resetting ASL state');
+  
+  // Stop any active streaming first
+  if (isStreaming) {
+    stopStreaming();
+  }
+  
+  // Reset all state to initial values
+  setTranslatedText('');
+  setConfidence(0);
+  setError('');
+  setToastVisible(false);
+  setRemainingTranslations(null);
+  
+  // Reset refs
+  lastGestureRef.current = null;
+  gestureCountRef.current = {};
+  
+}, [isAuthenticated, stopStreaming]);
+
 
   // Permission loading state
   if (hasPermission === null) {
@@ -325,6 +374,8 @@ const ASLTranslationScreen = () => {
     );
   }
 
+  
+
   return (
     <View style={[styles.container, { backgroundColor: isDarkMode ? '#222' : Constants.COLORS.BACKGROUND }]}>
       <View style={styles.content}>
@@ -353,6 +404,15 @@ const ASLTranslationScreen = () => {
           {isStreaming && (
             <View style={[styles.streamingIndicator, { backgroundColor: '#FF9800' }]}>
               <Text style={styles.statusText}>🎥 Processing</Text>
+            </View>
+          )}
+          
+            {/*  NEW: Remaining Translations Indicator */}
+          {!isAuthenticated && remainingTranslations !== null && isStreaming && (
+            <View style={[styles.remainingIndicator, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
+              <Text style={styles.statusText}>
+                {remainingTranslations} left
+              </Text>
             </View>
           )}
         </View>
@@ -535,6 +595,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: Constants.COLORS.CARD,
   },
+  remainingIndicator: {
+  position: 'absolute',
+  bottom: 10,
+  right: 10,
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+  borderRadius: 12,
+},
 });
 
 export default ASLTranslationScreen;
