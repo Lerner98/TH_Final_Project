@@ -1,4 +1,3 @@
-// ===== UPDATED TRANSLATION STORE =====
 // stores/TranslationStore.js
 import { create } from 'zustand';
 import { debounce } from 'lodash';
@@ -14,19 +13,12 @@ const saveGuestTranslations = debounce(async (translations) => {
   await AsyncStorageUtils.setItem(STORAGE_KEYS.GUEST_TRANSLATIONS, translations);
 }, 300);
 
-const useTranslationStore = create((set, get) => ({
-  recentTextTranslations: [],
-  recentVoiceTranslations: [],
-  savedTextTranslations: [],
-  savedVoiceTranslations: [],
-  guestTranslations: [],
-  isLoading: false,
-  error: null,
+// Create stable function references to prevent Metro rebuild issues
+const createStableFunctions = (set, get) => {
+  // Cache the functions so they have stable references
+  const stableFunctions = {};
 
-  /**
-   * Initialize guest translations from storage
-   */
-  initializeGuestTranslations: async () => {
+  stableFunctions.initializeGuestTranslations = async () => {
     try {
       const guestTranslations = await AsyncStorageUtils.getItem(STORAGE_KEYS.GUEST_TRANSLATIONS);
       set({ guestTranslations: guestTranslations || [] });
@@ -34,49 +26,116 @@ const useTranslationStore = create((set, get) => ({
       console.error('Failed to initialize guest translations:', error);
       set({ guestTranslations: [] });
     }
-  },
+  };
 
-  /**
-   * Fetch translations for a logged-in user.
-   * @param {Object} user - The user object with signed_session_id.
-   * @returns {Promise<void>} A promise that resolves when translations are fetched.
-   * @throws {Error} If fetching fails.
-   */
-  fetchTranslations: async (user) => {
+  stableFunctions.fetchTranslations = async (user) => {
+    const token = user?.signed_session_id || '';
+    const base = Constants.USER_DATA_API_URL;
+    const textUrl = `${base}${API_ENDPOINTS.TRANSLATIONS_TEXT}`;
+    const voiceUrl = `${base}${API_ENDPOINTS.TRANSLATIONS_VOICE}`;
+
+    console.log('[Store] fetchTranslations: start', {
+      hasToken: !!token,
+      textUrl,
+      voiceUrl,
+    });
+
     try {
       set({ isLoading: true, error: null });
 
-      const [textRes, voiceRes] = await Promise.all([
-        ApiService.get(API_ENDPOINTS.TRANSLATIONS_TEXT, user.signed_session_id),
-        ApiService.get(API_ENDPOINTS.TRANSLATIONS_VOICE, user.signed_session_id),
-      ]);
-
-      if (!textRes.success || !voiceRes.success) {
-        throw new Error(textRes.error || voiceRes.error);
+      // quick reachability
+      try {
+        const hc = await fetch(`${base}/health`);
+        console.log('[Store] UDS /health status =', hc.status);
+      } catch (e) {
+        console.log('[Store] UDS /health failed:', e?.message || e);
       }
 
+      // First try: native fetch (cleanest signal)
+      const [textResp, voiceResp] = await Promise.all([
+        fetch(textUrl, {
+          method: 'GET',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }),
+        fetch(voiceUrl, {
+          method: 'GET',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }),
+      ]);
+
+      console.log('[Store] fetchTranslations: fetch statuses', {
+        textStatus: textResp.status,
+        voiceStatus: voiceResp.status,
+      });
+
+      if (!textResp.ok || !voiceResp.ok) {
+        // read bodies (if any) for better error reporting
+        let tBody = '';
+        let vBody = '';
+        try { tBody = await textResp.text(); } catch {}
+        try { vBody = await voiceResp.text(); } catch {}
+        throw new Error(
+          `UDS GET failed: text(${textResp.status} ${tBody?.slice(0, 200)}) voice(${voiceResp.status} ${vBody?.slice(0, 200)})`
+        );
+      }
+
+      const [textData, voiceData] = await Promise.all([textResp.json(), voiceResp.json()]);
+
+      console.log('[Store] fetchTranslations: fetch ok', {
+        textCount: Array.isArray(textData) ? textData.length : 'n/a',
+        voiceCount: Array.isArray(voiceData) ? voiceData.length : 'n/a',
+      });
+
       set({
-        savedTextTranslations: textRes.data,
-        savedVoiceTranslations: voiceRes.data,
-        recentTextTranslations: textRes.data.slice(-5),
-        recentVoiceTranslations: voiceRes.data.slice(-5),
+        savedTextTranslations: textData || [],
+        savedVoiceTranslations: voiceData || [],
+        recentTextTranslations: Array.isArray(textData) ? textData.slice(-5) : [],
+        recentVoiceTranslations: Array.isArray(voiceData) ? voiceData.slice(-5) : [],
         isLoading: false,
         error: null,
       });
-    } catch (err) {
-      const msg = Helpers.handleError(err);
-      set({ error: msg, isLoading: false });
-      throw new Error(msg);
-    }
-  },
+    } catch (fetchErr) {
+      console.log('[Store] fetchTranslations: fetch path ERROR -> trying ApiService.get fallback', fetchErr?.message || fetchErr);
 
-  /**
-   * Clear all translations for a logged-in user.
-   * @param {Object} user - The user object with signed_session_id.
-   * @returns {Promise<void>} A promise that resolves when translations are cleared.
-   * @throws {Error} If clearing fails.
-   */
-  clearTranslations: async (user) => {
+      try {
+        const [textRes, voiceRes] = await Promise.all([
+          ApiService.get(API_ENDPOINTS.TRANSLATIONS_TEXT, token, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          }),
+          ApiService.get(API_ENDPOINTS.TRANSLATIONS_VOICE, token, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          }),
+        ]);
+
+        console.log('[Store] fetchTranslations: ApiService fallback results', {
+          textOk: textRes?.success,
+          voiceOk: voiceRes?.success,
+          textCount: Array.isArray(textRes?.data) ? textRes.data.length : 'n/a',
+          voiceCount: Array.isArray(voiceRes?.data) ? voiceRes.data.length : 'n/a',
+        });
+
+        if (!textRes.success || !voiceRes.success) {
+          throw new Error(textRes.error || voiceRes.error || 'Unknown fetch error');
+        }
+
+        set({
+          savedTextTranslations: textRes.data || [],
+          savedVoiceTranslations: voiceRes.data || [],
+          recentTextTranslations: Array.isArray(textRes.data) ? textRes.data.slice(-5) : [],
+          recentVoiceTranslations: Array.isArray(voiceRes.data) ? voiceRes.data.slice(-5) : [],
+          isLoading: false,
+          error: null,
+        });
+      } catch (axiosErr) {
+        console.log('[Store] fetchTranslations: ApiService fallback ERROR', axiosErr?.message || axiosErr);
+        const msg = Helpers.handleError(axiosErr);
+        set({ error: msg, isLoading: false });
+        throw new Error(msg);
+      }
+    }
+  };
+
+  stableFunctions.clearTranslations = async (user) => {
     try {
       set({ isLoading: true, error: null });
       const response = await ApiService.delete('/translations', user.signed_session_id);
@@ -95,14 +154,9 @@ const useTranslationStore = create((set, get) => ({
       set({ error: msg, isLoading: false });
       throw new Error(msg);
     }
-  },
+  };
 
-  /**
-   * Clear all guest translations.
-   * @returns {Promise<void>} A promise that resolves when guest translations are cleared.
-   * @throws {Error} If clearing fails.
-   */
-  clearGuestTranslations: async () => {
+  stableFunctions.clearGuestTranslations = async () => {
     try {
       set({ isLoading: true, error: null });
       await GuestManager.clearAllData();
@@ -112,30 +166,18 @@ const useTranslationStore = create((set, get) => ({
       set({ error: msg, isLoading: false });
       throw new Error(msg);
     }
-  },
+  };
 
-  /**
-   * Add a text translation for a logged-in user or guest.
-   * @param {Object} translation - The translation object to add.
-   * @param {boolean} isGuest - Whether the user is a guest.
-   * @param {string} sessionId - The session ID for logged-in users.
-   * @returns {Promise<void>} A promise that resolves when the translation is added.
-   * @throws {Error} If adding fails.
-   */
-  addTextTranslation: async (translation, isGuest, sessionId) => {
+  stableFunctions.addTextTranslation = async (translation, isGuest, sessionId) => {
     if (isGuest) {
       try {
-        // Check guest limits before adding
         const limitCheck = await GuestManager.checkTranslationLimit('text');
         if (!limitCheck.allowed) {
           throw new Error('Guest translation limit reached');
         }
-
         const updated = [...get().guestTranslations, { ...translation, type: 'text' }];
         set({ guestTranslations: updated });
         await saveGuestTranslations(updated);
-        
-        // Increment guest count
         await GuestManager.incrementCount('text');
       } catch (err) {
         throw new Error(Helpers.handleError(err));
@@ -145,10 +187,8 @@ const useTranslationStore = create((set, get) => ({
         set({ isLoading: true, error: null });
         const res = await ApiService.post(API_ENDPOINTS.TRANSLATIONS_TEXT, translation, sessionId);
         if (!res.success) throw new Error(res.error);
-
         const fetch = await ApiService.get(API_ENDPOINTS.TRANSLATIONS_TEXT, sessionId);
         if (!fetch.success) throw new Error(fetch.error);
-
         set({
           recentTextTranslations: fetch.data.slice(-5),
           savedTextTranslations: fetch.data,
@@ -161,30 +201,18 @@ const useTranslationStore = create((set, get) => ({
         throw new Error(msg);
       }
     }
-  },
+  };
 
-  /**
-   * Add a voice translation for a logged-in user or guest.
-   * @param {Object} translation - The translation object to add.
-   * @param {boolean} isGuest - Whether the user is a guest.
-   * @param {string} sessionId - The session ID for logged-in users.
-   * @returns {Promise<void>} A promise that resolves when the translation is added.
-   * @throws {Error} If adding fails.
-   */
-  addVoiceTranslation: async (translation, isGuest, sessionId) => {
+  stableFunctions.addVoiceTranslation = async (translation, isGuest, sessionId) => {
     if (isGuest) {
       try {
-        // Check guest limits before adding
         const limitCheck = await GuestManager.checkTranslationLimit('voice');
         if (!limitCheck.allowed) {
           throw new Error('Guest translation limit reached');
         }
-
         const updated = [...get().guestTranslations, { ...translation, type: 'voice' }];
         set({ guestTranslations: updated });
         await saveGuestTranslations(updated);
-        
-        // Increment guest count
         await GuestManager.incrementCount('voice');
       } catch (err) {
         throw new Error(Helpers.handleError(err));
@@ -194,10 +222,8 @@ const useTranslationStore = create((set, get) => ({
         set({ isLoading: true, error: null });
         const res = await ApiService.post(API_ENDPOINTS.TRANSLATIONS_VOICE, translation, sessionId);
         if (!res.success) throw new Error(res.error);
-
         const fetch = await ApiService.get(API_ENDPOINTS.TRANSLATIONS_VOICE, sessionId);
         if (!fetch.success) throw new Error(fetch.error);
-
         set({
           recentVoiceTranslations: fetch.data.slice(-5),
           savedVoiceTranslations: fetch.data,
@@ -210,51 +236,31 @@ const useTranslationStore = create((set, get) => ({
         throw new Error(msg);
       }
     }
-  },
+  };
 
-  /**
-   * Increment the guest translation count for a specific type.
-   * @param {string} type - The type of translation ('text' or 'voice').
-   * @returns {Promise<void>} A promise that resolves when the count is incremented.
-   */
-  incrementGuestTranslationCount: async (type) => {
+  stableFunctions.incrementGuestTranslationCount = async (type) => {
     try {
       await GuestManager.incrementCount(type);
     } catch (err) {
       const msg = `Failed to increment ${type} count: ${err.message}`;
       set({ error: msg });
     }
-  },
+  };
 
-  /**
-   * Get the guest translation count, either total or by type.
-   * @param {string} type - The type of count ('total', 'text', or 'voice').
-   * @returns {Promise<number>} The number of translations.
-   */
-  getGuestTranslationCount: async (type) => {
+  stableFunctions.getGuestTranslationCount = async (type) => {
     try {
       if (type === 'total') {
         const guest = await AsyncStorageUtils.getItem(STORAGE_KEYS.GUEST_TRANSLATIONS);
         return guest?.length || 0;
       }
-
       const counts = await GuestManager.getAllCounts();
       return counts[type] || 0;
     } catch {
       return 0;
     }
-  },
+  };
 
-  /**
-   * Remove a single translation for a logged-in user or guest.
-   * @param {string} translationId - The ID of the translation to remove.
-   * @param {string} type - The type of translation ('text' or 'voice').
-   * @param {boolean} isGuest - Whether the user is a guest.
-   * @param {string} [sessionId] - The session ID for logged-in users.
-   * @returns {Promise<void>} A promise that resolves when the translation is removed.
-   * @throws {Error} If removal fails.
-   */
-  removeTranslation: async (translationId, type, isGuest, sessionId) => {
+  stableFunctions.removeTranslation = async (translationId, type, isGuest, sessionId) => {
     try {
       set({ isLoading: true, error: null });
 
@@ -293,39 +299,27 @@ const useTranslationStore = create((set, get) => ({
       set({ error: msg, isLoading: false });
       throw new Error(msg);
     }
-  },
+  };
 
-  /**
-   * Get guest usage statistics
-   * @returns {Promise<Object>} Usage statistics
-   */
-  getGuestUsageStats: async () => {
+  stableFunctions.getGuestUsageStats = async () => {
     try {
       return await GuestManager.getUsageStats();
     } catch (error) {
       console.error('Failed to get guest usage stats:', error);
       return {};
     }
-  },
+  };
 
-  /**
-   * Check if guest user can perform translation
-   * @param {string} type - Translation type
-   * @returns {Promise<Object>} Limit check result
-   */
-  checkGuestLimit: async (type) => {
+  stableFunctions.checkGuestLimit = async (type) => {
     try {
       return await GuestManager.checkTranslationLimit(type);
     } catch (error) {
       console.error('Failed to check guest limit:', error);
       return { allowed: false, remaining: 0, limit: 0 };
     }
-  },
+  };
 
-  /**
-   * Reset all store state (useful for logout)
-   */
-  resetStore: () => {
+  stableFunctions.resetStore = () => {
     set({
       recentTextTranslations: [],
       recentVoiceTranslations: [],
@@ -335,7 +329,26 @@ const useTranslationStore = create((set, get) => ({
       isLoading: false,
       error: null,
     });
-  },
-}));
+  };
+
+  return stableFunctions;
+};
+
+const useTranslationStore = create((set, get) => {
+  const stableFunctions = createStableFunctions(set, get);
+
+  return {
+    recentTextTranslations: [],
+    recentVoiceTranslations: [],
+    savedTextTranslations: [],
+    savedVoiceTranslations: [],
+    guestTranslations: [],
+    isLoading: false,
+    error: null,
+
+    // All functions now have stable references
+    ...stableFunctions,
+  };
+});
 
 export default useTranslationStore;

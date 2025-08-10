@@ -1,13 +1,13 @@
-// ===== UPDATED CAMERA SCREEN WITH ENHANCED AUTH =====
+// ===== FIXED CAMERA SCREEN FOR MICROSERVICES =====
 // app/(drawer)/(tabs)/camera.jsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert, Pressable, FlatList, Image, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from '../../../utils/TranslationContext';
-import { useEnhancedSession } from '../../../utils/EnhancedSessionContext'; // ✅ FIXED
+import { useEnhancedSession } from '../../../utils/EnhancedSessionContext';
 import useTranslationStore from '../../../stores/TranslationStore';
-import TranslationService from '../../../services/TranslationService';
 import LanguageSearch from '../../../components/LanguageSearch';
 import Toast from '../../../components/Toast';
 import Constants from '../../../utils/Constants';
@@ -24,13 +24,12 @@ const { INPUT, BUTTON, CAMERA, ERROR_MESSAGES, COLORS, FONT_SIZES, SPACING } = C
  */
 const CameraTranslationScreen = () => {
   const { t, locale } = useTranslation();
-  const { session, isAuthenticated, preferences, guestManager } = useEnhancedSession(); // ✅ FIXED
+  const { session, isAuthenticated, preferences, guestManager, signOut } = useEnhancedSession();
   const { addTextTranslation } = useTranslationStore();
   const { isDarkMode } = useTheme();
   const [hasCameraPermission, setHasCameraPermission] = useState(null);
   const [hasGalleryPermission, setHasGalleryPermission] = useState(null);
   
-  // ✅ FIXED: Use preferences from enhanced session
   const [sourceLang, setSourceLang] = useState(preferences?.defaultFromLang || '');
   const [targetLang, setTargetLang] = useState(preferences?.defaultToLang || '');
   
@@ -48,7 +47,10 @@ const CameraTranslationScreen = () => {
   const [permission, requestPermission] = useCameraPermissions();
   const router = useRouter();
 
-  // ✅ ADDED: Update languages when preferences change
+  // ✅ FIXED: Use correct microservice URLs
+  const TRANSLATION_API_URL = Constants.TRANSLATION_API_URL; // Port 3002
+  const USER_DATA_API_URL = Constants.USER_DATA_API_URL;     // Port 3003
+
   useEffect(() => {
     if (preferences) {
       setSourceLang(preferences.defaultFromLang || '');
@@ -56,7 +58,7 @@ const CameraTranslationScreen = () => {
     }
   }, [preferences]);
 
-  // Permission checking useEffect
+  // Permission checking
   useEffect(() => {
     const checkPermissions = async () => {
       if (!permission) return;
@@ -81,7 +83,6 @@ const CameraTranslationScreen = () => {
     checkPermissions();
   }, [permission, requestPermission, t]);
 
-  // Simple language handlers
   const handleSourceLanguageSelect = useCallback((lang) => {
     setSourceLang(lang);
     setError('');
@@ -94,7 +95,6 @@ const CameraTranslationScreen = () => {
     setLanguageError('');
   }, []);
 
-  // ✅ ADDED: Guest limit checking with GuestManager
   const checkGuestLimits = useCallback(async () => {
     if (isAuthenticated) return true;
 
@@ -113,8 +113,6 @@ const CameraTranslationScreen = () => {
     setError('');
     setLanguageError('');
 
-    // ✅ FIXED: Camera translation no longer requires authentication
-    // Anyone can use it, but guests have limits
     if (hasCameraPermission !== true) {
       setError(t('error') + ': ' + ERROR_MESSAGES.CAMERA_PERMISSION_NOT_GRANTED);
       setToastVisible(true);
@@ -138,7 +136,6 @@ const CameraTranslationScreen = () => {
 
   const capturePhoto = useCallback(async () => {
     try {
-      // ✅ ADDED: Check guest limits before capturing
       const canTranslate = await checkGuestLimits();
       if (!canTranslate) {
         setIsTranslating(false);
@@ -165,7 +162,6 @@ const CameraTranslationScreen = () => {
 
   const selectPhotoFromGallery = useCallback(async () => {
     try {
-      // ✅ ADDED: Check guest limits before selecting photo
       const canTranslate = await checkGuestLimits();
       if (!canTranslate) return;
 
@@ -197,6 +193,7 @@ const CameraTranslationScreen = () => {
     }
   }, [hasGalleryPermission, t, sourceLang, targetLang, checkGuestLimits]);
 
+  // ✅ FIXED: Updated to work with microservices architecture
   const processCapturedPhoto = useCallback(async (uri, freshSourceLang, freshTargetLang) => {
     setIsProcessing(true);
     setError('');
@@ -210,10 +207,27 @@ const CameraTranslationScreen = () => {
     }
 
     try {
+      // Convert image to base64
       const imageBase64 = await Helpers.fileToBase64(uri);
-      const extractedTextResponse = await TranslationService.recognizeTextFromImage(imageBase64, session?.signed_session_id);
 
-      if (!extractedTextResponse || !extractedTextResponse.text) {
+      // ✅ FIXED: Extract text using Translation microservice (port 3002)
+      const extractResponse = await fetch(`${TRANSLATION_API_URL}/recognize-text`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.signed_session_id && { 'Authorization': `Bearer ${session.signed_session_id}` }),
+        },
+        body: JSON.stringify({
+          imageBase64: imageBase64,
+        }),
+      });
+
+      const extractResult = await extractResponse.json();
+      if (!extractResponse.ok) {
+        throw new Error(extractResult.error || 'Failed to extract text');
+      }
+
+      if (!extractResult.text || extractResult.text.trim() === '') {
         setOriginalText('');
         setTranslatedText('');
         setError(t('error') + ': ' + ERROR_MESSAGES.CAMERA_NO_TEXT_DETECTED);
@@ -221,90 +235,125 @@ const CameraTranslationScreen = () => {
         return;
       }
 
-      let extractedText = extractedTextResponse.text;
-      extractedText = extractedText
+      let extractedText = extractResult.text
         .replace(/^(The text says?:?\s*["\"]?|Text in the image:?\s*["\"]?)/i, '')
         .replace(/["\"]$/, '')
         .replace(/^["\"]/, '')
         .trim();
 
-      const detectResponse = await TranslationService.detectLanguage(extractedText, session?.signed_session_id);
-      const detectedLang = detectResponse.detectedLang;
+      setOriginalText(extractedText);
 
-      let translatedText;
-      let finalSourceLang = freshSourceLang;
+      // ✅ FIXED: Translate text using Translation microservice (port 3002)
+      const translateResponse = await fetch(`${TRANSLATION_API_URL}/translate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.signed_session_id && { 'Authorization': `Bearer ${session.signed_session_id}` }),
+        },
+        body: JSON.stringify({
+          text: extractedText,
+          targetLang: freshTargetLang,
+          sourceLang: freshSourceLang || 'auto',
+        }),
+      });
 
-      if (!freshSourceLang || freshSourceLang === 'auto' || freshSourceLang.trim() === '') {
-        finalSourceLang = detectedLang;
-      } else if (finalSourceLang !== detectedLang) {
-        setLanguageError(`The text appears to be in ${detectedLang}, but the source language was set to ${finalSourceLang}. Translation will proceed with detected language.`);
-        finalSourceLang = detectedLang;
+      const translateResult = await translateResponse.json();
+      if (!translateResponse.ok) {
+        throw new Error(translateResult.error || 'Failed to translate text');
       }
 
-      if (detectedLang === freshTargetLang) {
-        setOriginalText(extractedText);
-        setTranslatedText(extractedText);
-      } else {
-        const translationResponse = await TranslationService.translateText(
-          extractedText,
-          freshTargetLang,
-          finalSourceLang,
-          session?.signed_session_id
-        );
-        translatedText = translationResponse.translatedText;
-        setOriginalText(extractedText);
-        setTranslatedText(translatedText);
-      }
+      const { translatedText: result, detectedLang } = translateResult;
+      setTranslatedText(result);
 
+      // Store translation data
       setTranslationData({
         id: Date.now().toString(),
-        fromLang: finalSourceLang,
+        fromLang: detectedLang || freshSourceLang,
         toLang: freshTargetLang,
         original_text: extractedText,
-        translated_text: translatedText || extractedText,
+        translated_text: result,
         created_at: new Date().toISOString(),
         type: 'camera',
         imageUri: uri,
       });
 
-      // ✅ ADDED: Increment guest count if not authenticated
+      // Increment guest count if not authenticated
       if (!isAuthenticated) {
         await guestManager.incrementCount('camera');
       }
     } catch (err) {
-      let errorMessage = t('error') + ': ' + ERROR_MESSAGES.CAMERA_PROCESS_FAILED;
-      if (err.message) {
-        if (err.message.includes('Network error')) {
-          errorMessage = t('error') + ': ' + ERROR_MESSAGES.CAMERA_NETWORK_ERROR;
-        } else if (err.message.includes('No text detected')) {
-          errorMessage = t('error') + ': ' + ERROR_MESSAGES.CAMERA_NO_TEXT_DETECTED;
-        } else {
-          errorMessage = t('error') + ': ' + ERROR_MESSAGES.CAMERA_PROCESS_FAILED + ` (${err.message})`;
-        }
+      const errorMessage = Helpers.handleError(err);
+      if (errorMessage.includes('Invalid or expired session') && session) {
+        await signOut();
+        setError(t('error') + ': Your session has expired. Please log in again.');
+        setToastVisible(true);
+      } else {
+        setError(t('error') + ': ' + errorMessage);
+        setToastVisible(true);
       }
-      setError(errorMessage);
-      setToastVisible(true);
     } finally {
       setIsProcessing(false);
     }
-  }, [session, t, isAuthenticated, guestManager]); // ✅ FIXED dependencies
+  }, [session, t, isAuthenticated, guestManager, signOut, TRANSLATION_API_URL]);
 
+  // ✅ FIXED: Save function to use User Data microservice (port 3003)
   const handleSaveTranslation = useCallback(async () => {
+
     if (!translationData) {
       Alert.alert(t('error'), t('error') + ': No translation to save');
       return;
     }
 
     try {
-      // ✅ FIXED: Use isAuthenticated instead of session check
-      await addTextTranslation(translationData, !isAuthenticated, session?.signed_session_id);
+      if (isAuthenticated && session?.signed_session_id) {
+        // ✅ FIXED: Save to User Data Service
+        const response = await fetch(`${USER_DATA_API_URL}/translations/text`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.signed_session_id}`,
+          },
+          body: JSON.stringify({
+            fromLang: translationData.fromLang,
+            toLang: translationData.toLang,
+            original_text: translationData.original_text,
+            translated_text: translationData.translated_text,
+            type: translationData.type,
+          }),
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to save translation');
+        }
+
+        // Update local state
+        const { recentTextTranslations } = useTranslationStore.getState();
+        useTranslationStore.setState({
+          recentTextTranslations: [{ ...translationData, id: result.id || translationData.id }, ...recentTextTranslations.slice(0, 4)]
+        });
+      } else {
+        // Save for guest users
+        const existingTranslations = await AsyncStorage.getItem('guestTranslations');
+        const translations = existingTranslations ? JSON.parse(existingTranslations) : [];
+        translations.unshift(translationData);
+        await AsyncStorage.setItem('guestTranslations', JSON.stringify(translations));
+      }
+      
       setTranslationSaved(true);
       Alert.alert(t('success'), t('saveSuccess'));
     } catch (err) {
-      setError(t('error') + ': ' + ERROR_MESSAGES.CAMERA_SAVE_FAILED);
-      setToastVisible(true);
+      const errorMessage = Helpers.handleError(err);
+      if (errorMessage.includes('Invalid or expired session') && session) {
+        await signOut();
+        setError(t('error') + ': Your session has expired. Please log in again.');
+        setToastVisible(true);
+      } else {
+        setError(t('error') + ': Failed to save translation');
+        setToastVisible(true);
+      }
     }
-  }, [translationData, isAuthenticated, session, addTextTranslation, t]); // ✅ FIXED
+  }, [translationData, isAuthenticated, session, t, signOut, USER_DATA_API_URL]);
 
   const handleDeleteTranslation = useCallback(() => {
     setOriginalText('');
@@ -413,6 +462,7 @@ const CameraTranslationScreen = () => {
           </View>
         </View>
       </View>
+      
       <View style={styles.imageContainer}>
         {capturedPhotoUri ? (
           <Image
@@ -423,12 +473,10 @@ const CameraTranslationScreen = () => {
         ) : (
           <View style={[styles.imagePlaceholder, { backgroundColor: isDarkMode ? CAMERA.PLACEHOLDER_COLOR_DARK : CAMERA.PLACEHOLDER_COLOR_LIGHT }]}>
             <Text style={[styles.placeholderText, { color: isDarkMode ? INPUT.TEXT_COLOR_DARK : COLORS.SECONDARY_TEXT }]}>Camera Preview Will Appear Here</Text>
-            <Text style={[styles.noteText, { color: isDarkMode ? INPUT.TEXT_COLOR_DARK : COLORS.SECONDARY_TEXT }]}>
-              Note: Camera translation uses OpenAI's vision for text recognition.
-            </Text>
           </View>
         )}
       </View>
+      
       {isProcessing ? (
         <ActivityIndicator size="large" color={isDarkMode ? '#fff' : COLORS.PRIMARY} style={styles.loading} accessibilityLabel="Processing image" />
       ) : (
@@ -445,7 +493,9 @@ const CameraTranslationScreen = () => {
           <Text style={styles.cameraButtonLabel}>{t('camera')}</Text>
         </Pressable>
       )}
+      
       {error ? <Text style={[styles.error, { color: COLORS.DESTRUCTIVE }]}>{error}</Text> : null}
+      
       {(originalText || translatedText) && !isTranslating && !isProcessing ? (
         <View style={[styles.resultContainer, { backgroundColor: isDarkMode ? INPUT.BACKGROUND_COLOR_DARK : INPUT.BACKGROUND_COLOR_LIGHT }]}>
           {languageError ? (

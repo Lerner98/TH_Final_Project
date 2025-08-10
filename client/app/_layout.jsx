@@ -73,7 +73,6 @@ const RootLayoutInner = () => {
     <PaperProvider theme={theme}>
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
         <StatusBar
-          translucent
           backgroundColor={isDarkMode ? '#000' : Constants.COLORS.BACKGROUND}
           style={isDarkMode ? 'light' : 'dark'}
         />

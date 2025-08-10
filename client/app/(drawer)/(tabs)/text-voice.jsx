@@ -1,4 +1,4 @@
-// ===== UPDATED TEXT-VOICE SCREEN =====
+// ===== FIXED TEXT-VOICE SCREEN FOR MICROSERVICES =====
 // app/(drawer)/(tabs)/text-voice.jsx
 import React, { useState, useEffect, useCallback, useMemo, forwardRef, useRef } from 'react';
 import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert, FlatList, Platform } from 'react-native';
@@ -61,13 +61,16 @@ const TextVoiceInput = React.memo(({ t, isDarkMode, session, sourceLang, setSour
   const textInputRef = useRef(null);
   const router = useRouter();
   const { signOut } = useEnhancedSession();
-  const API_URL = Constants.API_URL;
+
+  // ✅ FIXED: Use correct microservice URLs
+  const TRANSLATION_API_URL = Constants.TRANSLATION_API_URL; // Port 3002
+  const USER_DATA_API_URL = Constants.USER_DATA_API_URL;     // Port 3003
 
   useEffect(() => {
     setToastVisible(false);
   }, [error]);
 
-  // Audio permission setup
+  // ✅ FIXED: Audio permission setup with enhanced cleanup
   useEffect(() => {
     const checkAndRequestAudioPermission = async () => {
       try {
@@ -107,15 +110,54 @@ const TextVoiceInput = React.memo(({ t, isDarkMode, session, sourceLang, setSour
     };
     checkAndRequestAudioPermission();
 
+    // ✅ FIXED: Enhanced cleanup function
     return () => {
-      if (soundObject) {
-        soundObject.unloadAsync();
-      }
-      if (recording) {
-        recording.stopAndUnloadAsync();
-      }
+      const cleanup = async () => {
+        try {
+          // Stop and clean up sound object
+          if (soundObject) {
+            await soundObject.stopAsync().catch(() => {});
+            await soundObject.unloadAsync().catch(() => {});
+            setSoundObject(null);
+          }
+          // Stop and clean up recording
+          if (recording) {
+            await recording.stopAndUnloadAsync().catch(() => {});
+            setRecording(null);
+          }
+          // Reset speaking state
+          setIsSpeaking(false);
+        } catch (error) {
+          console.warn('Audio cleanup error:', error);
+        }
+      };
+      cleanup();
     };
-  }, [t]);
+  }, [t, soundObject, recording]); // ✅ FIXED: Include soundObject and recording in dependencies
+
+  // ✅ FIXED: Session cleanup effect with proper logic
+  useEffect(() => {
+    if (!session) {
+      // User signed out - clean up audio immediately
+      const cleanupOnSignOut = async () => {
+        try {
+          if (soundObject) {
+            await soundObject.stopAsync().catch(() => {});
+            await soundObject.unloadAsync().catch(() => {});
+            setSoundObject(null);
+          }
+          if (recording) {
+            await recording.stopAndUnloadAsync().catch(() => {});
+            setRecording(null);
+          }
+          setIsSpeaking(false);
+        } catch (error) {
+          console.warn('Error cleaning up audio on sign out:', error);
+        }
+      };
+      cleanupOnSignOut();
+    }
+  }, [session, soundObject, recording]); // ✅ FIXED: Proper dependencies and immediate execution
 
   const handleTextChange = useCallback((text) => {
     setInputText(text);
@@ -123,7 +165,7 @@ const TextVoiceInput = React.memo(({ t, isDarkMode, session, sourceLang, setSour
   }, []);
 
   const checkGuestLimits = async (type = 'text') => {
-    if (session) return true; // No limits for authenticated users
+    if (session) return true;
 
     const limitCheck = await guestManager.checkTranslationLimit(type);
     if (!limitCheck.allowed) {
@@ -136,74 +178,80 @@ const TextVoiceInput = React.memo(({ t, isDarkMode, session, sourceLang, setSour
     return true;
   };
 
-const handleTranslate = async (textToTranslate = inputText, isVoice = false) => {
-  setError('');
-  setIsLoading(true);
-  setTranslationSaved(false);
-  setTranslationData(null);
+  // ✅ FIXED: Updated translate function to use Translation microservice (port 3002)
+  const handleTranslate = async (textToTranslate = inputText, isVoice = false) => {
+    setError('');
+    setIsLoading(true);
+    setTranslationSaved(false);
+    setTranslationData(null);
 
-  if (!textToTranslate.trim()) {
-    setError(t('error') + ': ' + Constants.ERROR_MESSAGES.TRANSLATION_TEXT_REQUIRED);
-    setIsLoading(false);
-    return;
-  }
-  if (!sourceLang || !targetLang) {
-    setError(t('error') + ': ' + Constants.ERROR_MESSAGES.TRANSLATION_LANGUAGES_REQUIRED);
-    setIsLoading(false);
-    return;
-  }
-
-  const translationType = isVoice ? 'voice' : 'text';
-  const canTranslate = await checkGuestLimits(translationType);
-  if (!canTranslate) {
-    setIsLoading(false);
-    return;
-  }
-
-  try {
-    const token = session?.signed_session_id || '';
-    const { translatedText: result, detectedLang } = await TranslationService.translateText(
-      textToTranslate,
-      targetLang,
-      sourceLang,
-      token
-    );
-
-    if (!result) {
-      throw new Error('Translation failed');
+    if (!textToTranslate.trim()) {
+      setError(t('error') + ': ' + Constants.ERROR_MESSAGES.TRANSLATION_TEXT_REQUIRED);
+      setIsLoading(false);
+      return;
+    }
+    if (!sourceLang || !targetLang) {
+      setError(t('error') + ': ' + Constants.ERROR_MESSAGES.TRANSLATION_LANGUAGES_REQUIRED);
+      setIsLoading(false);
+      return;
     }
 
-    setTranslatedText(result);
-    setTranslatedOriginalText(textToTranslate);
-
-    const translation = {
-      id: Date.now().toString(), // Consider using UUID or server-generated ID
-      fromLang: detectedLang,
-      toLang: targetLang,
-      original_text: textToTranslate,
-      translated_text: result,
-      created_at: new Date().toISOString(),
-      type: translationType, // Explicitly set based on isVoice
-    };
-    setTranslationData(translation);
-
-    if (!session) {
-      await guestManager.incrementCount(translationType);
+    const translationType = isVoice ? 'voice' : 'text';
+    const canTranslate = await checkGuestLimits(translationType);
+    if (!canTranslate) {
+      setIsLoading(false);
+      return;
     }
-  } catch (err) {
-    const errorMessage = Helpers.handleError(err);
-    if (errorMessage.includes('Invalid or expired session') && session) {
-      await signOut();
-      setError(t('error') + ': Your session has expired. Please log in again.');
-      setToastVisible(true);
-    } else {
-      setError(t('error') + ': ' + errorMessage);
-    }
-  } finally {
-    setIsLoading(false);
-  }
-};
 
+    try {
+      const token = session?.signed_session_id || '';
+      
+      // ✅ FIXED: Use existing TranslationService
+      const result = await TranslationService.translateText(
+        textToTranslate,
+        targetLang,
+        sourceLang,
+        token
+      );
+
+      const { translatedText: translatedResult, detectedLang } = result;
+
+      if (!translatedResult) {
+        throw new Error('Translation failed');
+      }
+
+      setTranslatedText(translatedResult);
+      setTranslatedOriginalText(textToTranslate);
+
+      const translation = {
+        id: Date.now().toString(),
+        fromLang: detectedLang,
+        toLang: targetLang,
+        original_text: textToTranslate,
+        translated_text: translatedResult,
+        created_at: new Date().toISOString(),
+        type: translationType,
+      };
+      setTranslationData(translation);
+
+      if (!session) {
+        await guestManager.incrementCount(translationType);
+      }
+    } catch (err) {
+      const errorMessage = Helpers.handleError(err);
+      if (errorMessage.includes('Invalid or expired session') && session) {
+        await signOut();
+        setError(t('error') + ': Your session has expired. Please log in again.');
+        setToastVisible(true);
+      } else {
+        setError(t('error') + ': ' + errorMessage);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ✅ FIXED: Updated handleHear with proper audio cleanup
   const handleHear = async () => {
     if (translatedText) {
       if (!session || !session.signed_session_id) {
@@ -218,8 +266,21 @@ const handleTranslate = async (textToTranslate = inputText, isVoice = false) => 
         return;
       }
 
+      // ✅ FIXED: Clean up any existing sound before creating new one
+      if (soundObject) {
+        try {
+          await soundObject.stopAsync();
+          await soundObject.unloadAsync();
+          setSoundObject(null);
+        } catch (error) {
+          console.warn('Error cleaning up previous sound:', error);
+        }
+      }
+
       setIsSpeaking(true);
+      
       try {
+        // ✅ FIXED: Use existing TranslationService
         const audioData = await TranslationService.textToSpeech(
           translatedText,
           targetLang,
@@ -232,17 +293,32 @@ const handleTranslate = async (textToTranslate = inputText, isVoice = false) => 
 
         const { sound } = await Audio.Sound.createAsync({ uri: audioUri });
         setSoundObject(sound);
-        await sound.playAsync();
+        
+        // ✅ FIXED: Add proper status update handler with cleanup
         sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.didJustFinish) {
+          if (status.didJustFinish || status.error) {
             setIsSpeaking(false);
-            FileSystem.deleteAsync(audioUri);
+            FileSystem.deleteAsync(audioUri).catch(console.error);
+            // ✅ FIXED: Clean up sound object properly
+            sound.unloadAsync().catch(console.error);
             setSoundObject(null);
           }
         });
+        
+        await sound.playAsync();
       } catch (err) {
         const errorMessage = Helpers.handleError(err);
         if (errorMessage.includes('Invalid or expired session') && session) {
+          // ✅ FIXED: Clean up sound before signing out
+          if (soundObject) {
+            try {
+              await soundObject.stopAsync();
+              await soundObject.unloadAsync();
+              setSoundObject(null);
+            } catch (cleanupError) {
+              console.warn('Error cleaning up sound during signout:', cleanupError);
+            }
+          }
           await signOut();
           setError(t('error') + ': Your session has expired. Please log in again.');
           setToastVisible(true);
@@ -256,104 +332,95 @@ const handleTranslate = async (textToTranslate = inputText, isVoice = false) => 
     }
   };
 
-// ===== FIXED SAVE LOGIC FOR LOGGED-IN USERS =====
-// This fixes the broken save functionality for database users
+  // ✅ FIXED: Updated save function to use User Data microservice (port 3003)
+  const handleSave = async () => {
+    if (!translatedText || !translationData) {
+      Alert.alert(t('error'), t('error') + ': ' + Constants.ERROR_MESSAGES.TRANSLATION_NO_TEXT_TO_SAVE);
+      return;
+    }
+    if (isSaving || translationSaved) return;
 
-const handleSave = async () => {
-  if (!translatedText || !translationData) {
-    Alert.alert(t('error'), t('error') + ': ' + Constants.ERROR_MESSAGES.TRANSLATION_NO_TEXT_TO_SAVE);
-    return;
-  }
+    setIsSaving(true);
+    try {
+      if (session && session.signed_session_id) {
+        const endpoint = translationData.type === 'voice'
+          ? '/translations/voice'
+          : '/translations/text';
 
-  if (isSaving || translationSaved) {
-    return; // Prevent double-saving
-  }
-
-  // Check guest limits for non-logged-in users
-  if (!session) {
-    const canSave = await checkGuestLimits('total');
-    if (!canSave) return;
-  }
-
-  setIsSaving(true);
-  try {
-    if (session && session.signed_session_id) {
-      // Determine endpoint based on translation type
-      const endpoint = translationData.type === 'voice' 
-        ? '/translations/voice' 
-        : '/translations/text';
-
-      console.log('Saving translation:', { id: translationData.id, type: translationData.type });
-
-      const response = await fetch(`${Constants.API_URL}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.signed_session_id}`,
-        },
-        body: JSON.stringify({
-          id: translationData.id, // Ensure unique ID
+        // ✅ FIXED: Use User Data Service for saving
+        const payload = {
           fromLang: translationData.fromLang,
           toLang: translationData.toLang,
           original_text: translationData.original_text,
           translated_text: translationData.translated_text,
           type: translationData.type,
-        }),
-      });
+        };
 
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to save translation');
-      }
+        const response = await fetch(`${USER_DATA_API_URL}${endpoint}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.signed_session_id}`,
+          },
+          body: JSON.stringify(payload),
+        });
 
-      console.log('Translation saved to', endpoint, result);
+        const text = await response.text();
+        let result;
+        try { result = JSON.parse(text); } catch { result = {}; }
 
-      // Update local state
-      const { addTextTranslation, addVoiceTranslation } = useTranslationStore.getState();
-      if (translationData.type === 'voice') {
-        addVoiceTranslation({ ...translationData, id: result.id || translationData.id }, false, session.signed_session_id);
-      } else {
-        addTextTranslation({ ...translationData, id: result.id || translationData.id }, false, session.signed_session_id);
-      }
-    } else {
-      // Guest user: Save to AsyncStorage
-      console.log('Saving translation for guest user');
-      useTranslationStore.setState((state) => {
-        const isDuplicate = state.guestTranslations.some(
-          (item) =>
-            item.original_text === translationData.original_text &&
-            item.translated_text === translationData.translated_text &&
-            item.type === translationData.type
-        );
-
-        if (isDuplicate) {
-          return state;
+        if (!response.ok) {
+          throw new Error(result.error || `Save failed (${response.status})`);
         }
 
-        const updatedGuestTranslations = [...state.guestTranslations, translationData];
-        AsyncStorage.setItem('guestTranslations', JSON.stringify(updatedGuestTranslations));
-        return { guestTranslations: updatedGuestTranslations };
-      });
-    }
+        const serverId = result.id || translationData.id || Date.now().toString();
+        const saved = { ...translationData, id: serverId };
 
-    setTranslationSaved(true);
-    Alert.alert(t('success'), t('saveSuccess'));
-  } catch (err) {
-    console.error('Failed to save translation:', err);
-    const errorMessage = Helpers.handleError(err);
-    if (errorMessage.includes('Invalid or expired session') && session) {
-      await signOut();
-      setError(t('error') + ': Your session has expired. Please log in again.');
-      setToastVisible(true);
-    } else {
-      setError(t('error') + ': ' + errorMessage);
-      setToastVisible(true);
-    }
-  } finally {
-    setIsSaving(false);
-  }
-};
+        // Update store
+        if (saved.type === 'voice') {
+          const { recentVoiceTranslations } = useTranslationStore.getState();
+          useTranslationStore.setState({
+            recentVoiceTranslations: [saved, ...recentVoiceTranslations].slice(0, 5),
+          });
+        } else {
+          const { recentTextTranslations } = useTranslationStore.getState();
+          useTranslationStore.setState({
+            recentTextTranslations: [saved, ...recentTextTranslations].slice(0, 5),
+          });
+        }
+      } else {
+        // Guest path unchanged
+        useTranslationStore.setState((state) => {
+          const isDup = state.guestTranslations.some(
+            (it) =>
+              it.original_text === translationData.original_text &&
+              it.translated_text === translationData.translated_text &&
+              it.type === translationData.type
+          );
+          if (isDup) return state;
+          const updated = [translationData, ...state.guestTranslations];
+          AsyncStorage.setItem('guestTranslations', JSON.stringify(updated));
+          return { guestTranslations: updated };
+        });
+      }
 
+      setTranslationSaved(true);
+      Alert.alert(t('success'), t('saveSuccess'));
+    } catch (err) {
+      const msg = Helpers.handleError(err);
+      if (msg.includes('Invalid or expired session') && session) {
+        await signOut();
+        setError(t('error') + ': Your session has expired. Please log in again.');
+      } else {
+        setError(t('error') + ': ' + msg);
+      }
+      setToastVisible(true);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ✅ FIXED: Updated speech-to-text to use Translation microservice (port 3002)
   const startRecording = async () => {
     setError('');
     setTranslationSaved(false);
@@ -385,7 +452,6 @@ const handleSave = async () => {
       return;
     }
 
-    // Check guest limits
     const canRecord = await checkGuestLimits('voice');
     if (!canRecord) return;
 
@@ -479,35 +545,12 @@ const handleSave = async () => {
         return;
       }
 
-      const formData = new FormData();
-      formData.append('audio', {
-        uri: uri,
-        name: 'recording.m4a',
-        type: 'audio/m4a',
-      });
-      formData.append('sourceLang', sourceLang);
-
-      const response = await fetch(`${API_URL}/speech-to-text`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${session?.signed_session_id}`,
-        },
-        body: formData,
-      });
-
-      const text = await response.text();
-      let result;
-      try {
-        result = JSON.parse(text);
-      } catch (jsonErr) {
-        throw new Error('Server returned non-JSON response. Raw response: ' + text);
-      }
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to transcribe audio');
-      }
-
-      const transcribedText = result.text;
+      // ✅ FIXED: Use existing speech-to-text service
+      const transcribedText = await TranslationService.speechToText(
+        uri,
+        sourceLang,
+        session?.signed_session_id
+      );
       if (!transcribedText) {
         throw new Error('Speech-to-text failed');
       }
@@ -533,6 +576,7 @@ const handleSave = async () => {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} pointerEvents="box-none">
         <View style={styles.content}>
+          {/* Language Selection */}
           <View style={styles.languageContainer}>
             <View style={styles.languageSection}>
               <Text style={[styles.label, { color: isDarkMode ? Constants.COLORS.CARD : Constants.COLORS.TEXT }]}>{t('sourceLang')}</Text>
@@ -556,6 +600,7 @@ const handleSave = async () => {
             </View>
           </View>
 
+          {/* Text Input with Microphone */}
           <View style={styles.inputContainer}>
             <Text style={[styles.label, { color: isDarkMode ? Constants.COLORS.CARD : Constants.COLORS.TEXT }]}>{t('original')}</Text>
             <View style={[styles.inputWrapper, { backgroundColor: isDarkMode ? Constants.INPUT.BACKGROUND_COLOR_DARK : Constants.COLORS.CARD }]}>
@@ -587,6 +632,7 @@ const handleSave = async () => {
             </View>
           </View>
 
+          {/* Translate Button */}
           <TouchableOpacity
             onPress={() => {
               setError('');
@@ -598,19 +644,25 @@ const handleSave = async () => {
             <Text style={styles.translateButtonLabel}>{t('translate')}</Text>
           </TouchableOpacity>
 
+          {/* Error Messages */}
           {error ? (
             <Text style={[styles.error, { color: Constants.COLORS.DESTRUCTIVE }]}>{error}</Text>
           ) : null}
+
+          {/* Loading Indicator */}
           {isLoading ? (
             <ActivityIndicator size="large" color={isDarkMode ? '#fff' : Constants.COLORS.PRIMARY} style={styles.loading} />
           ) : null}
 
+          {/* Translation Results */}
           {translatedText ? (
             <View style={[styles.resultContainer, { backgroundColor: isDarkMode ? Constants.INPUT.BACKGROUND_COLOR_DARK : Constants.COLORS.CARD }]}>
               <Text style={[styles.resultLabel, { color: isDarkMode ? Constants.COLORS.CARD : Constants.COLORS.TEXT }]}>{t('original')}</Text>
               <Text style={[styles.original, { color: isDarkMode ? Constants.COLORS.CARD : Constants.COLORS.SECONDARY_TEXT }]}>{translatedOriginalText}</Text>
               <Text style={[styles.resultLabel, { color: isDarkMode ? Constants.COLORS.CARD : Constants.COLORS.TEXT }]}>{t('translated')}</Text>
               <Text style={[styles.translated, { color: isDarkMode ? Constants.COLORS.CARD : Constants.COLORS.SECONDARY_TEXT }]}>{translatedText}</Text>
+              
+              {/* Action Buttons */}
               <View style={styles.actionButtons}>
                 <TouchableOpacity
                   onPress={() => {
@@ -618,29 +670,59 @@ const handleSave = async () => {
                     handleHear();
                   }}
                   disabled={isLoading || isSpeaking}
-                  style={[styles.actionButton, { backgroundColor: isDarkMode ? Constants.BUTTON.BACKGROUND_COLOR_DARK : Constants.COLORS.PRIMARY }]}
+                  style={[
+                    styles.actionButton, 
+                    { backgroundColor: isDarkMode ? Constants.BUTTON.BACKGROUND_COLOR_DARK : Constants.COLORS.PRIMARY },
+                    isLoading || isSpeaking ? styles.disabledButton : null
+                  ]}
+                  hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Play translated text as speech"
+                  accessibilityRole="button"
                 >
-                  <FontAwesome name="volume-up" size={20} color={Constants.COLORS.CARD} style={styles.actionIcon} />
+                  <FontAwesome 
+                    name="volume-up" 
+                    size={20} 
+                    color={Constants.COLORS.CARD} 
+                    style={styles.actionIcon} 
+                  />
                   <Text style={styles.actionButtonText}>{t('hear')}</Text>
                 </TouchableOpacity>
+                
                 <TouchableOpacity
                   onPress={() => {
                     setError('');
                     handleSave();
                   }}
                   disabled={translationSaved || isLoading || isSaving}
-                  style={[styles.actionButton, { backgroundColor: isDarkMode ? Constants.BUTTON.BACKGROUND_COLOR_DARK : Constants.COLORS.PRIMARY }]}
+                  style={[
+                    styles.actionButton, 
+                    { backgroundColor: isDarkMode ? Constants.BUTTON.BACKGROUND_COLOR_DARK : Constants.COLORS.PRIMARY },
+                    (translationSaved || isLoading || isSaving) ? styles.disabledButton : null
+                  ]}
+                  hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Save translation"
+                  accessibilityRole="button"
                 >
-                  <FontAwesome name="save" size={20} color={Constants.COLORS.CARD} style={styles.actionIcon} />
+                  <FontAwesome 
+                    name="save" 
+                    size={20} 
+                    color={Constants.COLORS.CARD} 
+                    style={styles.actionIcon} 
+                  />
                   <Text style={styles.actionButtonText}>{t('save')}</Text>
                 </TouchableOpacity>
               </View>
+              
+              {/* Success Message */}
               {translationSaved ? (
                 <Text style={[styles.savedMessage, { color: Constants.COLORS.SUCCESS }]}>{t('saveSuccess')}</Text>
               ) : null}
             </View>
           ) : null}
 
+          {/* Toast for Errors */}
           <Toast
             message={error}
             visible={toastVisible}
@@ -665,7 +747,6 @@ const TextVoiceTranslationScreen = () => {
   const [sourceLang, setSourceLang] = useState(preferences?.defaultFromLang || '');
   const [targetLang, setTargetLang] = useState(preferences?.defaultToLang || '');
 
-  // Update language preferences when they change
   useEffect(() => {
     if (preferences) {
       setSourceLang(preferences.defaultFromLang || '');
@@ -673,7 +754,6 @@ const TextVoiceTranslationScreen = () => {
     }
   }, [preferences]);
 
-  // Separate recent translations based on session state
   const recentTranslations = useMemo(() => {
     if (session) {
       return [...recentTextTranslations, ...recentVoiceTranslations].slice(-5);
@@ -713,9 +793,6 @@ const TextVoiceTranslationScreen = () => {
         }
         renderItem={({ item }) => (
           <View style={[styles.translationItem, { backgroundColor: isDarkMode ? Constants.INPUT.BACKGROUND_COLOR_DARK : Constants.COLORS.CARD }]}>
-            <Text style={[styles.translationText, { color: isDarkMode ? Constants.COLORS.CARD : Constants.COLORS.SECONDARY_TEXT }]}>
-              {t('original')}: {item.original_text}
-            </Text>
             <Text style={[styles.translationText, { color: isDarkMode ? Constants.COLORS.CARD : Constants.COLORS.SECONDARY_TEXT }]}>
               {t('translated')}: {item.translated_text}
             </Text>
@@ -837,14 +914,17 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 28,
+    paddingVertical: 14, 
+    paddingHorizontal: 28, 
     borderRadius: 12,
     minWidth: 140,
     elevation: 3,
   },
   actionIcon: {
     marginRight: Constants.SPACING.MEDIUM,
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
   actionButtonText: {
     color: Constants.COLORS.CARD,

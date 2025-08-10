@@ -102,7 +102,7 @@ const TranslationService = {
     });
     formData.append('sourceLang', sourceLang);
 
-    const response = await ApiService.uploadForm(API_ENDPOINTS.SPEECH_TO_TEXT, formData, signedSessionId);
+    const response = await ApiService.post(API_ENDPOINTS.SPEECH_TO_TEXT, formData, signedSessionId);
     if (response.success && response.data) {
       return response.data.text || '';
     }

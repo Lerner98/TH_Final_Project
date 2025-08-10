@@ -1,7 +1,6 @@
-// ===== UPDATED PROFILE SCREEN =====
-// app/(drawer)/profile.jsx
+// app/(drawer)/profile.jsx - CORRECTED VERSION
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Switch, Alert, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Switch, Alert, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { ActivityIndicator } from 'react-native-paper';
 import { useTranslation } from '../../utils/TranslationContext';
 import { useEnhancedSession } from '../../utils/EnhancedSessionContext';
@@ -13,6 +12,7 @@ import Constants from '../../utils/Constants';
 import Helpers from '../../utils/Helpers';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from '../../utils/ThemeContext';
+import GuestManager from '../../utils/GuestManager'; // Added to allow hard reset of guest counts for all screens for debugging
 
 const { PROFILE, ERROR_MESSAGES } = Constants;
 
@@ -28,7 +28,6 @@ const ProfileScreen = () => {
     defaultFromLang: preferences?.defaultFromLang || '',
     defaultToLang: preferences?.defaultToLang || '',
   });
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
@@ -48,19 +47,24 @@ const ProfileScreen = () => {
       setError('');
       try {
         if (session) {
-          const savedNotifications = await AsyncStorageUtils.getItem('notificationsEnabled');
-          if (savedNotifications !== null) {
-            setNotificationsEnabled(savedNotifications === 'true');
-          }
-
+          // For logged users: load from context (which loads from server)
           setLocalPreferences({
             defaultFromLang: preferences?.defaultFromLang || '',
             defaultToLang: preferences?.defaultToLang || '',
           });
         } else {
-          // Load guest statistics
-          const stats = await guestManager.getUsageStats();
+          // For guests: load both stats and preferences from local storage
+          const [stats, guestPrefs] = await Promise.all([
+            guestManager.getUsageStats(),
+            AsyncStorageUtils.getItem('preferences')
+          ]);
           setGuestStats(stats);
+          if (guestPrefs) {
+            setLocalPreferences({
+              defaultFromLang: guestPrefs.defaultFromLang || '',
+              defaultToLang: guestPrefs.defaultToLang || '',
+            });
+          }
         }
       } catch (err) {
         setError(t('error') + ': ' + Helpers.handleError(err));
@@ -72,28 +76,32 @@ const ProfileScreen = () => {
     loadData();
   }, [session, t, preferences, guestManager]);
 
-  const handleLanguageChange = useCallback(async (language) => {
+  // ✅ App Language Change - Available for ALL users, works instantly
+  const handleAppLanguageChange = useCallback(async (language) => {
     try {
       setSelectedLanguage(language);
-      if (!session) {
-        setError(t('error') + ': ' + ERROR_MESSAGES.PROFILE_LANGUAGE_CHANGE_NOT_LOGGED_IN);
-        setToastVisible(true);
-        return;
-      }
       await changeLocale(language);
+      Alert.alert(t('success'), `App language changed to ${language === 'en' ? 'English' : 'Hebrew'}`);
     } catch (err) {
       setError(t('error') + ': ' + Helpers.handleError(err));
       setToastVisible(true);
     }
-  }, [session, changeLocale, t]);
+  }, [changeLocale, t]);
 
+  // ✅ Save Translation Preferences - For ALL users (server for logged, local for guests)
   const handleSavePreferences = useCallback(async () => {
     setError('');
     setIsLoading(true);
+    
     try {
       if (session) {
+        // Logged users: save to server via context
         await setPreferences(localPreferences);
-        Alert.alert(t('success'), ERROR_MESSAGES.PROFILE_PREFERENCES_SAVED);
+        Alert.alert(t('success'), 'Translation preferences saved successfully!');
+      } else {
+        // Guests: save to local storage
+        await AsyncStorageUtils.setItem('preferences', localPreferences);
+        Alert.alert(t('success'), 'Translation preferences saved locally!');
       }
     } catch (err) {
       setError(t('error') + ': ' + Helpers.handleError(err));
@@ -107,12 +115,6 @@ const ProfileScreen = () => {
     setIsDarkModeLocal((prev) => !prev);
     await toggleTheme();
   }, [toggleTheme]);
-
-  const toggleNotifications = useCallback(async () => {
-    const newValue = !notificationsEnabled;
-    setNotificationsEnabled(newValue);
-    await AsyncStorageUtils.setItem('notificationsEnabled', newValue.toString());
-  }, [notificationsEnabled]);
 
   const handleClearTranslations = useCallback(async () => {
     Alert.alert(
@@ -132,7 +134,7 @@ const ProfileScreen = () => {
               } else {
                 await guestManager.clearAllData();
               }
-              Alert.alert(t('success'), ERROR_MESSAGES.PROFILE_TRANSLATIONS_CLEARED);
+              Alert.alert(t('success'), 'Translations cleared successfully!');
             } catch (err) {
               setError(t('error') + ': ' + Helpers.handleError(err));
               setToastVisible(true);
@@ -145,6 +147,167 @@ const ProfileScreen = () => {
     );
   }, [t, session, guestManager]);
 
+  const renderContent = () => (
+    <View style={styles.content}>
+      <View style={[styles.headerContainer, { backgroundColor: isDarkModeLocal ? PROFILE.BACKGROUND_COLOR_DARK : PROFILE.BACKGROUND_COLOR_LIGHT }]}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
+          <FontAwesome name="arrow-left" size={24} color={isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT} />
+        </Pressable>
+        <Text style={[styles.headerText, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>
+          {session ? t('profile', { defaultValue: 'Profile' }) : t('settings', { defaultValue: 'Settings' })}
+        </Text>
+        <View style={styles.placeholder} />
+      </View>
+
+      {/* User Profile Section - Only for logged users */}
+      {session && (
+        <View style={[styles.section, { backgroundColor: isDarkModeLocal ? PROFILE.SECTION_BACKGROUND_COLOR_DARK : PROFILE.SECTION_BACKGROUND_COLOR_LIGHT }]}>
+          <Text style={[styles.sectionTitle, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('profile')}</Text>
+          <Text style={[styles.detailText, { color: isDarkModeLocal ? PROFILE.SECONDARY_TEXT_COLOR_DARK : PROFILE.SECONDARY_TEXT_COLOR_LIGHT }]}>{t('email')}</Text>
+          <Text style={[styles.detailValue, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{session.email}</Text>
+        </View>
+      )}
+
+      {/* Guest Usage Statistics - Only for guests */}
+      {!isAuthenticated && Object.keys(guestStats).length > 0 && (
+        <View style={[styles.section, { backgroundColor: isDarkModeLocal ? PROFILE.SECTION_BACKGROUND_COLOR_DARK : PROFILE.SECTION_BACKGROUND_COLOR_LIGHT }]}>
+          <Text style={[styles.sectionTitle, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>Guest Usage</Text>
+          
+          {Object.entries(guestStats)
+            .filter(([type]) => !['file', 'daily', 'total', 'voice'].includes(type))
+            .map(([type, stats]) => (
+              <View key={type} style={styles.usageItem}>
+                <Text style={[styles.usageLabel, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>
+                  {type.charAt(0).toUpperCase() + type.slice(1)} Translations:
+                </Text>
+                <Text style={[styles.usageValue, { color: isDarkModeLocal ? PROFILE.SECONDARY_TEXT_COLOR_DARK : PROFILE.SECONDARY_TEXT_COLOR_LIGHT }]}>
+                  {stats.current}/{stats.limit} ({stats.remaining} remaining)
+                </Text>
+              </View>
+            ))}
+          
+          <Pressable
+            style={[styles.upgradeButton, { backgroundColor: Constants.COLORS.PRIMARY }]}
+            onPress={() => router.push('/(auth)/register')}
+          >
+            <Text style={styles.upgradeButtonText}>Upgrade to Unlimited</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Preferences Section - Available for ALL users */}
+      <View style={[styles.section, { backgroundColor: isDarkModeLocal ? PROFILE.SECTION_BACKGROUND_COLOR_DARK : PROFILE.SECTION_BACKGROUND_COLOR_LIGHT }]}>
+        <Text style={[styles.sectionTitle, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('preferences')}</Text>
+
+        {/* ✅ App Language - Available for ALL users */}
+        <View style={styles.option}>
+          <Text style={[styles.optionText, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('appLanguage')}</Text>
+          <View style={styles.languageOptions}>
+            {['en', 'he'].map((lang) => (
+              <Pressable
+                key={lang}
+                style={({ pressed }) => [
+                  styles.languageButton,
+                  selectedLanguage === lang && styles.selectedLanguageButton,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
+                onPress={() => handleAppLanguageChange(lang)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityLabel={`Select ${lang === 'en' ? 'English' : 'Hebrew'} language`}
+                accessibilityRole="button"
+              >
+                <Text style={[
+                  styles.languageButtonText,
+                  selectedLanguage === lang && styles.selectedLanguageText,
+                  { color: isDarkModeLocal ? PROFILE.SECONDARY_TEXT_COLOR_DARK : PROFILE.SECONDARY_TEXT_COLOR_LIGHT },
+                  selectedLanguage === lang && { color: PROFILE.SELECTED_TEXT_COLOR },
+                ]}>
+                  {lang === 'en' ? 'English' : 'Hebrew'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {/* ✅ Dark Mode - Available for ALL users */}
+        <View style={styles.option}>
+          <Text style={[styles.optionText, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('darkMode')}</Text>
+          <Switch
+            value={isDarkModeLocal}
+            onValueChange={handleToggleDarkMode}
+            trackColor={{ false: '#767577', true: '#81b0ff' }}
+            thumbColor={isDarkModeLocal ? '#f5dd4b' : '#f4f3f4'}
+            accessibilityLabel="Toggle dark mode"
+          />
+        </View>
+
+        {/* ✅ Translation Preferences - Available for ALL users */}
+        <Text style={[styles.subsectionTitle, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>
+          Translation Preferences {!session && '(Local)'}
+        </Text>
+        
+        <View style={styles.languagePreference}>
+          <Text style={[styles.optionText, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('sourceLang')}</Text>
+          <View style={styles.languageSearchContainer}>
+            <LanguageSearch
+              onSelectLanguage={(lang) => setLocalPreferences({ ...localPreferences, defaultFromLang: lang })}
+              selectedLanguage={localPreferences.defaultFromLang}
+            />
+          </View>
+        </View>
+
+        <View style={styles.languagePreference}>
+          <Text style={[styles.optionText, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('targetLang')}</Text>
+          <View style={styles.languageSearchContainer}>
+            <LanguageSearch
+              onSelectLanguage={(lang) => setLocalPreferences({ ...localPreferences, defaultToLang: lang })}
+              selectedLanguage={localPreferences.defaultToLang}
+            />
+          </View>
+        </View>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.saveButton,
+            { backgroundColor: isDarkModeLocal ? PROFILE.SAVE_BUTTON_COLOR_DARK : PROFILE.SAVE_BUTTON_COLOR_LIGHT, opacity: pressed ? 0.7 : 1 },
+          ]}
+          onPress={handleSavePreferences}
+          disabled={isLoading}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Save translation preferences"
+          accessibilityRole="button"
+        >
+          <Text style={styles.saveButtonText}>
+            {session ? t('savePreferences') : 'Save Preferences (Local)'}
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* Clear Translations Section - Available for ALL users */}
+      <View style={[styles.section, { backgroundColor: isDarkModeLocal ? PROFILE.SECTION_BACKGROUND_COLOR_DARK : PROFILE.SECTION_BACKGROUND_COLOR_LIGHT }]}>
+        <Text style={[styles.sectionTitle, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('clearTranslations')}</Text>
+        <Pressable
+          style={({ pressed }) => [
+            styles.clearButton,
+            { backgroundColor: Constants.COLORS.DESTRUCTIVE, opacity: pressed ? 0.7 : 1 },
+          ]}
+          onPress={handleClearTranslations}
+          disabled={isLoading}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Clear translations"
+          accessibilityRole="button"
+        >
+          <Text style={styles.clearButtonText}>{t('clearTranslations')}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -152,173 +315,13 @@ const ProfileScreen = () => {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <View style={[styles.container, { backgroundColor: isDarkModeLocal ? PROFILE.BACKGROUND_COLOR_DARK : PROFILE.BACKGROUND_COLOR_LIGHT }]}>
-        <View style={[styles.headerContainer, { backgroundColor: isDarkModeLocal ? PROFILE.BACKGROUND_COLOR_DARK : PROFILE.BACKGROUND_COLOR_LIGHT }]}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-          >
-            <FontAwesome name="arrow-left" size={24} color={isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT} />
-          </Pressable>
-          <Text style={[styles.headerText, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>
-            {session ? t('profile', { defaultValue: 'Profile' }) : t('settings', { defaultValue: 'Settings' })}
-          </Text>
-          <View style={styles.placeholder} />
-        </View>
-
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {session && (
-            <View style={[styles.section, { backgroundColor: isDarkModeLocal ? PROFILE.SECTION_BACKGROUND_COLOR_DARK : PROFILE.SECTION_BACKGROUND_COLOR_LIGHT }]}>
-              <Text style={[styles.sectionTitle, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('profile')}</Text>
-              <Text style={[styles.detailText, { color: isDarkModeLocal ? PROFILE.SECONDARY_TEXT_COLOR_DARK : PROFILE.SECONDARY_TEXT_COLOR_LIGHT }]}>{t('email')}</Text>
-              <Text style={[styles.detailValue, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{session.email}</Text>
-            </View>
-          )}
-
-          {/* Guest Usage Statistics */}
-          {!isAuthenticated && Object.keys(guestStats).length > 0 && (
-            <View style={[styles.section, { backgroundColor: isDarkModeLocal ? PROFILE.SECTION_BACKGROUND_COLOR_DARK : PROFILE.SECTION_BACKGROUND_COLOR_LIGHT }]}>
-              <Text style={[styles.sectionTitle, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>Guest Usage</Text>
-              {Object.entries(guestStats).map(([type, stats]) => (
-                <View key={type} style={styles.usageItem}>
-                  <Text style={[styles.usageLabel, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>
-                    {type.charAt(0).toUpperCase() + type.slice(1)} Translations:
-                  </Text>
-                  <Text style={[styles.usageValue, { color: isDarkModeLocal ? PROFILE.SECONDARY_TEXT_COLOR_DARK : PROFILE.SECONDARY_TEXT_COLOR_LIGHT }]}>
-                    {stats.current}/{stats.limit} ({stats.remaining} remaining)
-                  </Text>
-                </View>
-              ))}
-              <Pressable
-                style={[styles.upgradeButton, { backgroundColor: Constants.COLORS.PRIMARY }]}
-                onPress={() => router.push('/(auth)/register')}
-              >
-                <Text style={styles.upgradeButtonText}>Upgrade to Unlimited</Text>
-              </Pressable>
-            </View>
-          )}
-
-          <View style={[styles.section, { backgroundColor: isDarkModeLocal ? PROFILE.SECTION_BACKGROUND_COLOR_DARK : PROFILE.SECTION_BACKGROUND_COLOR_LIGHT }]}>
-            <Text style={[styles.sectionTitle, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('preferences')}</Text>
-
-            {session && (
-              <View style={styles.option}>
-                <Text style={[styles.optionText, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('appLanguage')}</Text>
-                <View style={styles.languageOptions}>
-                  {['en', 'he'].map((lang) => (
-                    <Pressable
-                      key={lang}
-                      style={({ pressed }) => [
-                        styles.languageButton,
-                        selectedLanguage === lang && styles.selectedLanguageButton,
-                        { opacity: pressed ? 0.7 : 1 },
-                      ]}
-                      onPress={() => handleLanguageChange(lang)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      accessibilityLabel={`Select ${lang === 'en' ? 'English' : 'Hebrew'} language`}
-                      accessibilityRole="button"
-                    >
-                      <Text style={[
-                        styles.languageButtonText,
-                        selectedLanguage === lang && styles.selectedLanguageText,
-                        { color: isDarkModeLocal ? PROFILE.SECONDARY_TEXT_COLOR_DARK : PROFILE.SECONDARY_TEXT_COLOR_LIGHT },
-                        selectedLanguage === lang && { color: PROFILE.SELECTED_TEXT_COLOR },
-                      ]}>
-                        {lang === 'en' ? 'English' : 'Hebrew'}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            <View style={styles.option}>
-              <Text style={[styles.optionText, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('darkMode')}</Text>
-              <Switch
-                value={isDarkModeLocal}
-                onValueChange={handleToggleDarkMode}
-                trackColor={{ false: '#767577', true: '#81b0ff' }}
-                thumbColor={isDarkModeLocal ? '#f5dd4b' : '#f4f3f4'}
-                accessibilityLabel="Toggle dark mode"
-              />
-            </View>
-
-            {session && (
-              <>
-                <View style={styles.option}>
-                  <Text style={[styles.optionText, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('sourceLang')}</Text>
-                  <LanguageSearch
-                    onSelectLanguage={(lang) => setLocalPreferences({ ...localPreferences, defaultFromLang: lang })}
-                    selectedLanguage={localPreferences.defaultFromLang}
-                  />
-                </View>
-
-                <View style={styles.option}>
-                  <Text style={[styles.optionText, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('targetLang')}</Text>
-                  <LanguageSearch
-                    onSelectLanguage={(lang) => setLocalPreferences({ ...localPreferences, defaultToLang: lang })}
-                    selectedLanguage={localPreferences.defaultToLang}
-                  />
-                </View>
-
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.saveButton,
-                    { backgroundColor: isDarkModeLocal ? PROFILE.SAVE_BUTTON_COLOR_DARK : PROFILE.SAVE_BUTTON_COLOR_LIGHT, opacity: pressed ? 0.7 : 1 },
-                  ]}
-                  onPress={handleSavePreferences}
-                  disabled={isLoading}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityLabel="Save preferences"
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.saveButtonText}>{t('savePreferences')}</Text>
-                </Pressable>
-              </>
-            )}
-          </View>
-
-          {session && (
-            <View style={[styles.section, { backgroundColor: isDarkModeLocal ? PROFILE.SECTION_BACKGROUND_COLOR_DARK : PROFILE.SECTION_BACKGROUND_COLOR_LIGHT }]}>
-              <Text style={[styles.sectionTitle, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('notifications')}</Text>
-              <View style={styles.option}>
-                <Text style={[styles.optionText, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('notifications')}</Text>
-                <Switch
-                  value={notificationsEnabled}
-                  onValueChange={toggleNotifications}
-                  trackColor={{ false: '#767577', true: '#81b0ff' }}
-                  thumbColor={notificationsEnabled ? '#f5dd4b' : '#f4f3f4'}
-                  accessibilityLabel="Toggle notifications"
-                />
-              </View>
-            </View>
-          )}
-
-          <View style={[styles.section, { backgroundColor: isDarkModeLocal ? PROFILE.SECTION_BACKGROUND_COLOR_DARK : PROFILE.SECTION_BACKGROUND_COLOR_LIGHT }]}>
-            <Text style={[styles.sectionTitle, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('clearTranslations')}</Text>
-            <Pressable
-              style={({ pressed }) => [
-                styles.clearButton,
-                { backgroundColor: Constants.COLORS.DESTRUCTIVE, opacity: pressed ? 0.7 : 1 },
-              ]}
-              onPress={handleClearTranslations}
-              disabled={isLoading}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityLabel="Clear translations"
-              accessibilityRole="button"
-            >
-              <Text style={styles.clearButtonText}>{t('clearTranslations')}</Text>
-            </Pressable>
-          </View>
-
-          <View style={[styles.section, { backgroundColor: isDarkModeLocal ? PROFILE.SECTION_BACKGROUND_COLOR_DARK : PROFILE.SECTION_BACKGROUND_COLOR_LIGHT }]}>
-            <Pressable style={styles.option}>
-              <Text style={[styles.optionText, { color: isDarkModeLocal ? PROFILE.TEXT_COLOR_DARK : PROFILE.TEXT_COLOR_LIGHT }]}>{t('about')}</Text>
-              <Text style={[styles.optionValue, { color: isDarkModeLocal ? PROFILE.SECONDARY_TEXT_COLOR_DARK : PROFILE.SECONDARY_TEXT_COLOR_LIGHT }]}>{t('comingSoon')}</Text>
-            </Pressable>
-          </View>
-        </ScrollView>
+        <FlatList
+          data={[]}
+          keyExtractor={() => 'profile'}
+          ListHeaderComponent={renderContent}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        />
 
         {isLoading && (
           <ActivityIndicator
@@ -338,12 +341,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  content: {
+    padding: Constants.SPACING.SECTION,
+    paddingBottom: Constants.SPACING.SECTION * 2,
+  },
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Constants.SPACING.MEDIUM,
     paddingVertical: Constants.SPACING.LARGE,
+    marginHorizontal: -Constants.SPACING.SECTION,
+    marginTop: -Constants.SPACING.SECTION,
+    marginBottom: Constants.SPACING.MEDIUM,
   },
   headerText: {
     fontSize: 20,
@@ -355,7 +365,6 @@ const styles = StyleSheet.create({
     width: 24,
   },
   scrollContent: {
-    padding: Constants.SPACING.SECTION,
     paddingBottom: Constants.SPACING.SECTION * 2,
   },
   section: {
@@ -372,6 +381,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: Constants.SPACING.MEDIUM,
+  },
+  subsectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: Constants.SPACING.MEDIUM,
+    marginBottom: Constants.SPACING.SMALL,
   },
   detailText: {
     fontSize: 16,
@@ -391,10 +406,6 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 16,
     fontWeight: '500',
-  },
-  optionValue: {
-    fontSize: 14,
-    fontStyle: 'italic',
   },
   usageItem: {
     flexDirection: 'row',
@@ -441,6 +452,12 @@ const styles = StyleSheet.create({
   selectedLanguageText: {
     color: PROFILE.SELECTED_TEXT_COLOR,
     fontWeight: '600',
+  },
+  languagePreference: {
+    marginBottom: Constants.SPACING.MEDIUM,
+  },
+  languageSearchContainer: {
+    marginTop: Constants.SPACING.SMALL,
   },
   saveButton: {
     paddingVertical: Constants.SPACING.MEDIUM,
