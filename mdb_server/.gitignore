@@ -1,7 +1,7 @@
 node_modules/ 
 package-lock.json
 .env
-
+test/
 
 # Expo
 .expo/
@@ -24,6 +24,3 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
-
-
-

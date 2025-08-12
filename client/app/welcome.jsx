@@ -1,4 +1,4 @@
-// ===== UPDATED WELCOME SCREEN =====
+// ===== UPDATED WELCOME SCREEN WITH ERROR REPORTING TEST =====
 // app/welcome.jsx
 import React, { useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
@@ -8,6 +8,7 @@ import Constants from '../utils/Constants';
 import { useEnhancedSession } from '../utils/EnhancedSessionContext';
 import { useTranslation } from '../utils/TranslationContext';
 import { FontAwesome } from '@expo/vector-icons';
+import GlobalErrorCapture from '../utils/GlobalErrorCapture'; // ✅ ADD THIS IMPORT
 
 const { WELCOME } = Constants;
 
@@ -25,6 +26,29 @@ const WelcomeScreen = () => {
       return fallback;
     }
   }, [t]);
+
+  // ✅ ADD THIS TEST FUNCTION
+  const testErrorReporting = useCallback(async () => {
+    console.log('🧪 Testing error reporting manually...');
+    try {
+      await GlobalErrorCapture.reportError(new Error('Manual test from Welcome screen'), {
+        screen: 'WelcomeScreen',
+        errorType: 'manual_test',
+        extra: { testSource: 'welcome_button' }
+      });
+      console.log('✅ Error report sent');
+    } catch (error) {
+      console.error('❌ Failed to send error report:', error);
+    }
+  }, []);
+
+  // ✅ ADD THIS AUTOMATIC TEST ON MOUNT
+  useEffect(() => {
+    console.log('[WelcomeScreen] Component mounted - testing error reporting...');
+    setTimeout(() => {
+      testErrorReporting();
+    }, 2000); // Wait 2 seconds then test
+  }, [testErrorReporting]);
 
   // Redirect if already authenticated with delay
   useEffect(() => {
@@ -70,6 +94,16 @@ const WelcomeScreen = () => {
       }]}>
         {safeTranslate('welcome', 'TranslationHub')}
       </Text>
+
+      {/* ✅ ADD THIS TEST BUTTON */}
+      <TouchableOpacity
+        style={[styles.button, { backgroundColor: 'orange' }]}
+        onPress={testErrorReporting}
+        accessibilityLabel="Test error reporting"
+        accessibilityRole="button"
+      >
+        <Text style={styles.buttonText}>🧪 Test Error Reporting</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={[styles.button, { 
