@@ -8,6 +8,7 @@ import Helpers from './Helpers';
 import { router } from 'expo-router';
 import Constants from './Constants';
 import * as Localization from 'expo-localization';
+import GlobalErrorCapture from './GlobalErrorCapture';
 
 // Auth state machine
 const AUTH_STATES = {
@@ -202,6 +203,7 @@ export const EnhancedSessionProvider = ({ children }) => {
           
           if (response.success) {
             console.log('[Auth] Session restored successfully');
+              GlobalErrorCapture.setUserId(userData.id);
             dispatch({
               type: AUTH_ACTIONS.SET_AUTHENTICATED,
               payload: {
@@ -223,6 +225,7 @@ export const EnhancedSessionProvider = ({ children }) => {
 
       // Default to guest mode
       console.log('[Auth] Defaulting to guest mode');
+      GlobalErrorCapture.setUserId('guest');
       dispatch({
         type: AUTH_ACTIONS.SET_GUEST,
         payload: {
@@ -291,6 +294,7 @@ export const EnhancedSessionProvider = ({ children }) => {
         await AsyncStorageUtils.setItem('preferences', userPreferences);
 
         console.log('[Auth] Sign in successful');
+        GlobalErrorCapture.setUserId(user.id);
         dispatch({
         type: AUTH_ACTIONS.SET_AUTHENTICATED,
         payload: {
@@ -345,6 +349,7 @@ export const EnhancedSessionProvider = ({ children }) => {
       ]);
 
       console.log('[Auth] Sign out successful');
+      GlobalErrorCapture.setUserId('guest');
       dispatch({
         type: AUTH_ACTIONS.SET_GUEST,
         payload: {

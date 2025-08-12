@@ -1,5 +1,6 @@
 // ===== UPDATED _layout.jsx (Root Layout) =====
 // app/_layout.jsx
+import GlobalErrorCapture from '../utils/GlobalErrorCapture';
 import React, { useState, useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { PaperProvider, DefaultTheme, DarkTheme } from 'react-native-paper';
@@ -101,6 +102,7 @@ const RootLayoutInner = () => {
 };
 
 export default function RootLayout() {
+  GlobalErrorCapture.init();
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

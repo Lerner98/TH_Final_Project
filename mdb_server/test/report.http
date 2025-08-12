@@ -1,1 +1,107 @@
 Use for tests any nessecary POST request etc.. 
+
+### Test Admin Login
+POST http://localhost:3005/admin/login
+Content-Type: application/json
+
+{
+  "email": "guylerner12@gmail.com",
+  "password": "guy123"
+}
+
+### Simple MDB Server Tests
+### Save as: C:\TH_Final_Test\mdb_server\test\report.http
+### Replace YOUR_API_KEY_HERE with your actual API key from .env file
+
+###############################################
+### 1. LOGIN ADMIN
+###############################################
+
+### Login to get JWT token
+POST http://localhost:3005/admin/login
+Content-Type: application/json
+
+{
+  "email": "guylerner12@gmail.com",
+  "password": "guy123"
+}
+
+### Expected: Copy the "token" value for protected endpoints below
+
+###############################################
+### 2. SUBMIT ERROR REPORT (MAIN TEST)
+###############################################
+
+### Submit Error Report (React Native Simulation)
+POST http://localhost:3005/api/reports
+Content-Type: application/json
+x-api-key: a6ac6357-ef7a-44bd-af98-0dc56dc789eb
+
+{
+  "userId": "http-test-user",
+  "type": "error",
+  "message": "Test error from HTTP client",
+  "errorStack": "Error: Test error from HTTP client\n    at testFunction (test.js:10)",
+  "screen": "HTTPTestScreen",
+  "platform": "android",
+  "appVersion": "1.0.0",
+  "deviceInfo": {
+    "model": "Test Device",
+    "os": "Android 12",
+    "brand": "TestBrand"
+  },
+  "extra": {
+    "errorType": "http_test",
+    "testSource": "manual_http"
+  }
+}
+
+### Expected: {"success": true, "message": "Report submitted successfully"}
+
+###############################################
+### 3. GET REPORTS (PROTECTED)
+###############################################
+
+### Get All Reports (Replace YOUR_JWT_TOKEN with token from login above)
+GET http://localhost:3005/api/reports
+Authorization: Bearer K9mP2qL8j5vX4rY7n6zB3wT
+
+### Expected: Array of reports including the one you just submitted
+
+###############################################
+### 4. TEST ERROR CONDITIONS
+###############################################
+
+### Test Invalid API Key (Should fail)
+POST http://localhost:3005/api/reports
+Content-Type: application/json
+x-api-key: invalid-key
+
+{
+  "userId": "test",
+  "type": "error",
+  "message": "This should fail"
+}
+
+### Expected: {"success": false, "message": "Invalid API key"}
+
+### Test Missing Message (Should fail)
+POST http://localhost:3005/api/reports
+Content-Type: application/json
+x-api-key: a6ac6357-ef7a-44bd-af98-0dc56dc789eb
+
+{
+  "userId": "test",
+  "type": "error"
+}
+
+### Expected: {"success": false, "message": "Message is required"}
+
+###############################################
+### 5. VERIFICATION
+###############################################
+
+### After running tests, check MongoDB:
+### use translationhub
+### db.reports.find({userId: "http-test-user"})
+### db.reports.find().sort({createdAt: -1}).limit(3)

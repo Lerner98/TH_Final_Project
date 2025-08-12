@@ -37,7 +37,7 @@ app.use('/admin', adminRoutes);
 app.use('/api/reports', reportRoutes);
 
 // Start the server
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3005; // Changed from 3001 to 3005
 app.listen(PORT, () => {
   logger.info(`MDB Server running on port ${PORT}`);
 });
