@@ -1,4 +1,10 @@
-// server.js - TranslationHub All Services
+/**
+ * server.js - TranslationHub Main Application Entry Point
+ * Bootstraps and starts all three microservices (Auth, Translation, User Data).
+ * Loads environment variables, initializes services on different ports,
+ * and provides graceful shutdown handling for the entire application.
+ */
+
 require('dotenv').config();
 
 console.log('🚀 Starting TranslationHub...');

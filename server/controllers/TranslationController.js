@@ -1,4 +1,10 @@
-// controllers/TranslationController.js - WORKING VERSION FROM MONOLITH
+/**
+ * TranslationController.js - Translation Services Controller
+ * Handles all translation-related operations using OpenAI APIs including text translation,
+ * speech-to-text, text-to-speech, OCR from images, ASL recognition, and document processing.
+ * Supports multiple file formats (PDF, DOCX, TXT) and provides language detection capabilities.
+ */
+
 const { Document, Packer, Paragraph, TextRun } = require('docx');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
@@ -15,7 +21,7 @@ const openai = new OpenAI({
 
 class TranslationController {
   /**
-   * Search supported languages based on a query.
+   * Search supported languages based on a query
    */
   async searchLanguages(query) {
     const supportedLanguages = [
@@ -86,7 +92,7 @@ class TranslationController {
   }
 
   /**
-   * Detect file type from Base64 prefix.
+   * Detect file type from Base64 prefix
    */
   detectFileExtensionFromBase64(base64String) {
     const prefix = base64String.slice(0, 50);
@@ -100,7 +106,7 @@ class TranslationController {
   }
 
   /**
-   * Translate text using OpenAI - WORKING VERSION FROM MONOLITH
+   * Translates text between languages using OpenAI with automatic language detection
    */
   async translate(req, res) {
     console.log('[Translation Service] POST /translate - Controller called');
@@ -167,7 +173,7 @@ class TranslationController {
   }
 
   /**
-   * Extract text from an image using OpenAI Vision - WORKING VERSION
+   * Extract text from an image using OpenAI Vision 
    */
   async recognizeText(req, res) {
     console.log('[Translation Service] POST /recognize-text');
@@ -209,7 +215,7 @@ class TranslationController {
   }
 
   /**
-   * Convert audio to text using OpenAI Whisper API - WORKING VERSION
+   * Convert audio to text using OpenAI Whisper API 
    */
   async speechToText(req, res) {
     console.log('[Translation Service] POST /speech-to-text');
@@ -252,7 +258,7 @@ class TranslationController {
   }
 
   /**
-   * Convert text to audio using OpenAI TTS - WORKING VERSION
+   * Convert text to audio using OpenAI TTS API
    */
   async textToSpeech(req, res) {
     console.log('[Translation Service] POST /text-to-speech');
@@ -288,7 +294,7 @@ class TranslationController {
   }
 
   /**
-   * Recognize ASL gestures from an image using OpenAI Vision - WORKING VERSION
+   * Recognize ASL gestures from an image using OpenAI Vision 
    */
   async recognizeAsl(req, res) {
     console.log('[Translation Service] POST /recognize-asl');
@@ -320,7 +326,7 @@ class TranslationController {
   }
 
   /**
-   * Extract text from a file (PDF, DOCX, TXT) - WORKING VERSION
+   * Extract text from a file with different formats (PDF, DOCX, TXT) 
    */
   async extractText(req, res) {
     console.log('[Translation Service] POST /extract-text');
@@ -355,7 +361,7 @@ class TranslationController {
   }
 
   /**
-   * Generate a Word document from text - WORKING VERSION
+   * Creates a Word document from text content and returns it as download
    */
   async generateDocx(req, res) {
     console.log('[Translation Service] POST /generate-docx');
@@ -395,7 +401,7 @@ class TranslationController {
   }
 
   /**
-   * Search supported languages by query - WORKING VERSION
+   * Returns filtered list of supported languages based on search query
    */
   async getLanguages(req, res) {
     console.log('[Translation Service] GET /languages');

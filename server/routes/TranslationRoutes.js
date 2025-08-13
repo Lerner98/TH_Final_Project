@@ -1,50 +1,56 @@
-// routes/TranslationRoutes.js
+/**
+ * TranslationRoutes.js - Translation Routes Configuration
+ * Defines all translation-related endpoints for the translation service.
+ * Maps HTTP routes to TranslationController methods with appropriate
+ * authentication middleware for text, voice, image, and document processing.
+ */
+
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const TranslationController = require('../controllers/TranslationController');
 const { optionalAuthMiddleware, authMiddleware } = require('../middleware/AuthMiddleware');
 
-// Configure multer for file uploads - EXACT same as original
+// Configure multer for file uploads (not used atm)
 const upload = multer({ dest: 'uploads/' });
 
 /**
- * Translate text using OpenAI
+ * // Translates text between languages using OpenAI (optional auth)
  */
 router.post('/translate', optionalAuthMiddleware, TranslationController.translate.bind(TranslationController));
 
 /**
- * Extract text from an image using OpenAI Vision
+ * Extracts text from images using OCR (optional auth)
  */
 router.post('/recognize-text', optionalAuthMiddleware, TranslationController.recognizeText.bind(TranslationController));
 
 /**
- * Convert audio to text using OpenAI Whisper API
+ * Converts audio files to text using Whisper API (requires auth)
  */
 router.post('/speech-to-text', upload.single('audio'), authMiddleware, TranslationController.speechToText.bind(TranslationController));
 
 /**
- * Convert text to audio using OpenAI TTS
+ * Converts text to speech audio using TTS API (requires auth)
  */
 router.post('/text-to-speech', authMiddleware, TranslationController.textToSpeech.bind(TranslationController));
 
 /**
- * Recognize ASL gestures from an image using OpenAI Vision
+ * Recognizes ASL gestures from images (requires auth)
  */
 router.post('/recognize-asl', authMiddleware, TranslationController.recognizeAsl.bind(TranslationController));
 
 /**
- * Extract text from a file (PDF, DOCX, TXT)
+ * Extracts text from document files (PDF, DOCX, TXT) (requires auth)
  */
 router.post('/extract-text', authMiddleware, TranslationController.extractText.bind(TranslationController));
 
 /**
- * Generate a Word document from text
+ * Generates Word document from text content (optional auth)
  */
 router.post('/generate-docx', optionalAuthMiddleware, TranslationController.generateDocx.bind(TranslationController));
 
 /**
- * Search supported languages by query
+ * Returns filtered list of supported languages (no auth required)
  */
 router.get('/languages', TranslationController.getLanguages.bind(TranslationController));
 

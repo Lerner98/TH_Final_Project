@@ -1,4 +1,10 @@
-// services/authService.js - CLEAN VERSION
+/**
+ * authService.js - Authentication Microservice
+ * Express server handling user authentication operations on port 3001.
+ * Configures CORS, middleware, and routes for registration, login, logout,
+ * Google OAuth, and password reset functionality.
+ */
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -12,7 +18,7 @@ const port = 3001;
 
 console.log('[Auth Service] Starting on port 3001...');
 
-// EXACT same CORS and middleware as original
+// Configure CORS to allow all origins and standard HTTP methods
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'DELETE', 'PUT', 'PATCH'],
@@ -20,7 +26,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' }));
 
-// EXACT same _method handler as original
+// Handle HTTP method override for clients that don't support all methods
 app.use((req, res, next) => {
   if (req.method === 'POST' && req.query._method) {
     req.method = req.query._method.toUpperCase();
@@ -31,7 +37,7 @@ app.use((req, res, next) => {
 // Use auth routes
 app.use('/', authRoutes);
 
-// Health check
+// Health check endpoint for service monitoring
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 

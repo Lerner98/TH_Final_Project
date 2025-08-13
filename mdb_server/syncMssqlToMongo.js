@@ -1,3 +1,30 @@
+/**
+ * MSSQL to MongoDB Data Synchronization Script
+ * 
+ * Purpose: Synchronizes data from MSSQL database to MongoDB for reporting and analytics
+ * 
+ * Architecture:
+ * MSSQL Database (Port 3000) → HTTP API → This Sync Script → MongoDB (translationhub)
+ * 
+ * Collections Synced:
+ * 1. TranslationStats - User language translation statistics from MSSQL LanguageStatistics table
+ * 2. UserActivityStats - Aggregated user activity data from MSSQL Sessions/TextTranslations/VoiceTranslations
+ * 3. AuditLogs - System audit trails from MSSQL AuditLogs table
+ * 
+ * Data Flow:
+ * 1. Connects to MongoDB (translationhub database)
+ * 2. Fetches data from MSSQL via REST API endpoints (/statistics-for-sync, /user-activity-stats-for-sync, /audit-logs-for-sync)
+ * 3. Transforms data format from MSSQL structure to MongoDB structure
+ * 4. Clears existing MongoDB collections to avoid duplicates
+ * 5. Inserts fresh data from MSSQL
+ * 6. Closes connection
+ * 
+ * Usage: Run manually or via cron job to keep MongoDB reporting data in sync with production MSSQL data
+ * Command: node syncMssqlToMongo.js
+ * 
+ * Error Handling: Includes axios retry logic (3 retries with exponential backoff) for network resilience
+ */
+
 const mongoose = require('mongoose');
 const axios = require('axios');
 const axiosRetry = require('axios-retry');

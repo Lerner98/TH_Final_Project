@@ -1,5 +1,10 @@
-// ===== GOOGLE AUTHENTICATION SERVICE =====
-// services/GoogleAuthService.js
+/**
+ * GoogleAuthService.js - Google OAuth Authentication Service
+ * Handles Google Sign-In token verification using Google Auth Library.
+ * Verifies ID tokens, extracts user information, and provides token
+ * revocation functionality for secure Google OAuth integration.
+ */
+
 const { OAuth2Client } = require('google-auth-library');
 
 class GoogleAuthService {
@@ -7,7 +12,7 @@ class GoogleAuthService {
     this.client = null;
     this.initialize();
   }
-
+  // Initializes Google OAuth2 client with environment configuration
   initialize() {
     if (!process.env.GOOGLE_CLIENT_ID) {
       console.warn('Google Client ID not configured - Google Sign-In will be disabled');
@@ -22,6 +27,7 @@ class GoogleAuthService {
     }
   }
 
+  // Verifies Google ID token and extracts user information
   async verifyIdToken(token) {
     if (!this.client) {
       throw new Error('Google Auth service not configured');
@@ -54,6 +60,7 @@ class GoogleAuthService {
     }
   }
 
+  // Revokes Google access token for logout functionality
   async revokeToken(token) {
     if (!this.client) {
       throw new Error('Google Auth service not configured');
@@ -68,6 +75,7 @@ class GoogleAuthService {
     }
   }
 
+  // Checks if Google Auth service is properly configured
   isConfigured() {
     return this.client !== null;
   }

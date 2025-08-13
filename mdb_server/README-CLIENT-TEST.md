@@ -20,17 +20,20 @@ Your React Native app automatically captures and sends error reports to your MDB
 3. **React Native app** running on device/emulator
 4. **MongoDB shell** connected for verification
 
-### **Quick Setup:**
+## Terminal Setup
 ```bash
-# Terminal 1: Start MDB Server
+# Terminal 1
+mongod --port 27017 --dbpath C:\data\db --auth
+
+# Terminal 2  
 cd C:\TH_Final_Test\mdb_server
 node server.js
 
-# Terminal 2: Start React Native App  
-cd C:\TH_Final_Test\your-react-native-app
+# Terminal 3
+cd C:\TH_Final_Test\your-app-name
 npx expo start
 
-# Terminal 3: MongoDB Shell
+# Terminal 4
 mongosh mongodb://adminUser:adminPass123@127.0.0.1:27017/admin
 ```
 
