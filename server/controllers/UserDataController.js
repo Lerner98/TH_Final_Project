@@ -1,8 +1,15 @@
-// controllers/UserDataController.js
+/**
+ * UserDataController.js - User Data Management Controller
+ * Manages user preferences, translation history, and statistics.
+ * Handles CRUD operations for text/voice translations, user settings,
+ * and provides audit logs for user activities.
+ */
+
 const db = require('../utils/database');
 const { ERROR_MESSAGES } = require('../utils/constants');
 
 class UserDataController {
+  // Updates user's default language preferences for translation
   async updatePreferences(req, res) {
     console.log('[User Data Service] POST /preferences');
     const { defaultFromLang, defaultToLang } = req.body;
@@ -17,6 +24,7 @@ class UserDataController {
     }
   }
 
+  // Saves a text translation to user's history
   async saveTextTranslation(req, res) {
     console.log('[User Data Service] POST /translations/text START');
     console.log('[User Data Service] User ID:', req.user?.id);
@@ -37,6 +45,7 @@ class UserDataController {
     }
   }
 
+  // Retrieves all text translations for the authenticated user
   async getTextTranslations(req, res) {
     console.log('[User Data Service] GET /translations/text START user:', req.user?.id);
     try {
@@ -49,6 +58,7 @@ class UserDataController {
     }
   }
 
+  // Saves a voice translation to user's history
   async saveVoiceTranslation(req, res) {
     console.log('[User Data Service] POST /translations/voice START user:', req.user?.id);
     const { fromLang, toLang, original_text, translated_text, type } = req.body;
@@ -63,6 +73,7 @@ class UserDataController {
     }
   }
 
+  // Retrieves all voice translations for the authenticated user
   async getVoiceTranslations(req, res) {
     console.log('[User Data Service] GET /translations/voice START user:', req.user?.id);
     try {
@@ -75,6 +86,7 @@ class UserDataController {
     }
   }
 
+  // Deletes a specific translation by ID (DELETE method)
   async deleteTranslation(req, res) {
     console.log('[User Data Service] DELETE /translations/delete/:id START user:', req.user?.id, 'id:', req.params.id);
     try {
@@ -87,6 +99,7 @@ class UserDataController {
     }
   }
 
+  // Deletes a specific translation by ID (POST method alternative)
   async deleteTranslationPost(req, res) {
     console.log('[User Data Service] POST /translations/delete/:id START user:', req.user?.id, 'id:', req.params.id);
     try {
@@ -99,6 +112,7 @@ class UserDataController {
     }
   }
 
+  // Clears all translations for the authenticated user
   async clearTranslations(req, res) {
     console.log('[User Data Service] DELETE /translations START user:', req.user?.id);
     try {
@@ -111,6 +125,7 @@ class UserDataController {
     }
   }
 
+  // Retrieves user's translation statistics and language usage data
   async getStatistics(req, res) {
     console.log('[User Data Service] GET /statistics START user:', req.user?.id);
     try {
@@ -123,6 +138,7 @@ class UserDataController {
     }
   }
 
+  // Retrieves user's language preferences with defaults if none set
   async getPreferences(req, res) {
   console.log('[User Data Service] GET /preferences START user:', req.user?.id);
   try {
@@ -138,6 +154,7 @@ class UserDataController {
   }
 }
 
+  // Retrieves audit logs showing user's activity history
   async getAuditLogs(req, res) {
     console.log('[User Data Service] GET /audit-logs START user:', req.user?.id);
     try {

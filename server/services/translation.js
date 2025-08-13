@@ -1,4 +1,10 @@
-// services/translation.js
+/**
+ * translation.js - Translation Microservice
+ * Express server handling translation operations on port 3002.
+ * Provides endpoints for text translation, OCR, speech processing,
+ * ASL recognition, and document handling using OpenAI APIs.
+ */
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -16,6 +22,7 @@ const port = 3002;
 
 console.log('[Translation Service] Starting on port 3002...');
 
+// Configure CORS to allow all origins and standard HTTP methods
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'DELETE', 'PUT', 'PATCH'],
@@ -23,6 +30,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' }));
 
+// Handle HTTP method override for clients that don't support all methods
 app.use((req, res, next) => {
   if (req.method === 'POST' && req.query._method) {
     req.method = req.query._method.toUpperCase();
@@ -30,7 +38,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ADD THIS DEBUG MIDDLEWARE:
+// Debug middleware to log all incoming requests and authentication status
 app.use((req, res, next) => {
   console.log(`[Translation Service] ${req.method} ${req.url} - DEBUG`);
   console.log(`[Translation Service] Headers:`, req.headers.authorization ? 'TOKEN_PRESENT' : 'NO_TOKEN');
@@ -38,7 +46,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ADD ERROR HANDLER:
+// Global error handler for catching and logging server errors
 app.use((err, req, res, next) => {
   console.error('[Translation Service] ERROR:', err);
   res.status(500).json({ error: 'Internal server error' });
@@ -46,6 +54,7 @@ app.use((err, req, res, next) => {
 
 app.use('/', translationRoutes);
 
+// Health check endpoint for service monitoring
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 

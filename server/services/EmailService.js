@@ -1,5 +1,10 @@
-// ===== EMAIL SERVICE =====
-// services/EmailService.js
+/**
+ * EmailService.js - Email Communication Service
+ * Handles email sending functionality using Nodemailer with support for multiple
+ * providers (Gmail, SMTP, Ethereal). Provides templated emails for password reset,
+ * welcome messages, and test emails with HTML formatting and QR code generation.
+ */
+
 const nodemailer = require('nodemailer');
 const path = require('path');
 const fs = require('fs');
@@ -59,6 +64,7 @@ class EmailService {
     }
   }
 
+  // Tests email service connection and configuration
   async verifyConnection() {
     if (!this.transporter) {
       throw new Error('Email service not initialized');
@@ -74,6 +80,7 @@ class EmailService {
     }
   }
 
+  // Sends password reset email with styled HTML template and QR code
   async sendPasswordResetEmail(email, resetToken) {
     if (!this.transporter) {
       throw new Error('Email service not configured');
@@ -214,6 +221,7 @@ class EmailService {
     }
   }
 
+  // Sends welcome email to new users with app features overview
   async sendWelcomeEmail(email, name) {
     if (!this.transporter) {
       throw new Error('Email service not configured');
@@ -321,6 +329,7 @@ class EmailService {
     }
   }
 
+  // Sends test email to verify email service functionality
   async sendTestEmail(email) {
     if (!this.transporter) {
       throw new Error('Email service not configured');

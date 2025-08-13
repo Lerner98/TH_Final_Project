@@ -1,10 +1,17 @@
-// middleware/AuthMiddleware.js - UNIFIED for all services
+/**
+ * AuthMiddleware.js - Authentication Middleware
+ * Provides JWT token validation and session verification for protected routes.
+ * Includes both required and optional authentication middleware functions
+ * for different endpoint security requirements across all services.
+ */
+
 const jwt = require('jsonwebtoken');
 const db = require('../utils/database');
 const { ERROR_MESSAGES } = require('../utils/constants');
 
 const JWT_SECRET = process.env.SESSION_SECRET || 'K9mP2qL8j5vX4rY7n6zB3wT';
 
+// Validates JWT token and session for authenticated requests
 const authenticateToken = async (req) => {
   const authHeader = req.headers['authorization'];
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -32,6 +39,7 @@ const authenticateToken = async (req) => {
   }
 };
 
+// Validates JWT token optionally, allowing unauthenticated requests
 const optionalAuthenticateToken = async (req) => {
   const authHeader = req.headers['authorization'];
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -53,6 +61,7 @@ const optionalAuthenticateToken = async (req) => {
   }
 };
 
+// Express middleware requiring valid authentication to proceed
 const authMiddleware = async (req, res, next) => {
   const authResult = await authenticateToken(req);
   if (authResult.error) {
@@ -62,6 +71,7 @@ const authMiddleware = async (req, res, next) => {
   next();
 };
 
+// Express middleware allowing both authenticated and anonymous requests
 const optionalAuthMiddleware = async (req, res, next) => {
   const authResult = await optionalAuthenticateToken(req);
   if (authResult.error) {

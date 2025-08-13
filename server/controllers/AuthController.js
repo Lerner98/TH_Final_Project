@@ -1,4 +1,10 @@
-// controllers/AuthController.js - WORKING VERSION FROM MONOLITH
+/**
+ * AuthController.js - Authentication Controller
+ * Handles user authentication operations including registration, login, logout,
+ * Google OAuth integration, password reset functionality, and session management.
+ * Uses JWT tokens for secure user authentication and bcrypt for password hashing.
+ */
+
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
@@ -73,7 +79,7 @@ class AuthController {
   }
 
   /**
-   * Validate a user session - WORKING VERSION FROM MONOLITH
+   * Validate a user session 
    */
   async validateSession(req, res) {
     console.log('[Auth Service] GET /validate-session');
@@ -85,7 +91,7 @@ class AuthController {
   }
 
   /**
-   * Log out a user by invalidating their session - WORKING VERSION FROM MONOLITH
+   * Log out a user by invalidating their session 
    */
   async logout(req, res) {
     console.log('[Auth Service] POST /logout');
@@ -109,7 +115,7 @@ class AuthController {
   }
 
   /**
-   * Google Sign-In authentication endpoint - WORKING VERSION FROM MONOLITH
+   * Google Sign-In authentication endpoint
    */
   async googleAuth(req, res) {
     console.log('[Auth Service] POST /auth/google');
@@ -191,7 +197,7 @@ class AuthController {
   }
 
   /**
-   * Request password reset endpoint - WORKING VERSION FROM MONOLITH
+   * Request password reset endpoint
    */
   async forgotPassword(req, res) {
     console.log('[Auth Service] POST /auth/forgot-password');
@@ -246,7 +252,7 @@ class AuthController {
   }
 
   /**
-   * Reset password endpoint - WORKING VERSION FROM MONOLITH
+   * Reset password endpoint 
    */
   async resetPassword(req, res) {
     console.log('[Auth Service] POST /auth/reset-password');
@@ -284,7 +290,7 @@ class AuthController {
   }
 
   /**
-   * Refresh token endpoint - WORKING VERSION FROM MONOLITH
+   * Refresh token endpoint
    */
   async refreshToken(req, res) {
     console.log('[Auth Service] POST /auth/refresh-token');
@@ -321,7 +327,7 @@ class AuthController {
   }
 
   /**
-   * WORKING middleware to verify JWT token for protected routes.
+   * Verify JWT token for protected routes
    */
   async authenticateToken(req) {
     const authHeader = req.headers['authorization'];
