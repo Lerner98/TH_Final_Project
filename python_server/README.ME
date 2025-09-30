@@ -1,11 +1,21 @@
+### TO DOWNLOAD REQUIREMENTS
+pip install -r requirements.txt  
+
+### TO CREATE .venv
+C:\Users\guyle\AppData\Local\Programs\Python\Python310\python.exe -m venv .venv
+C:\Users\danie\AppData\Local\Programs\Python\Python310\python.exe -m venv .venv  
+
 ### OPEN ENVIROMENT
 .\.venv\Scripts\activate
 
 ### RUN THE SERVER
 python main.py
 
-### TO CREATE .venv
-C:\Users\guyle\AppData\Local\Programs\Python\Python310\python.exe -m venv .venv
-
 ### TO DELETE .venv
 Remove-Item -Recurse -Force .venv
+
+### TO FIND A SERVER
+netstat -ano | findstr :8000
+
+### TO STOP A SERVER
+taskkill /PID <PID> /F
