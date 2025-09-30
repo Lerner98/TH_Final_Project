@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- Modern ASL "I LOVE YOU" Hand Gesture -->
+    <path
+        android:fillColor="@color/white"
+        android:pathData="M100,50 C120,50 140,70 140,90 L140,120 C140,140 120,160 100,160 C80,160 60,140 60,120 L60,90 C60,70 80,50 100,50 Z
+                     M80,60 L80,100 M120,60 L120,100 M100,40 L100,130
+                     M70,80 C70,75 75,70 80,70 C85,70 90,75 90,80
+                     M110,80 C110,75 115,70 120,70 C125,70 130,75 130,80" />
+
+    <!-- Simplified Hand Outline -->
+    <path
+        android:strokeColor="@color/white"
+        android:strokeWidth="4"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M100,180 Q90,170 85,160 Q80,150 80,140 L80,100 Q80,80 90,70 Q100,60 110,70 Q120,80 120,100 L120,140 Q120,150 115,160 Q110,170 100,180 Z" />
+</vector>

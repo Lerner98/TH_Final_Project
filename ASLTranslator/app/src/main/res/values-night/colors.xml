@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors - Night Mode -->
+    <color name="primary">#D0BCFF</color>             <!-- Lighter purple for dark mode -->
+    <color name="primary_dark">#4F378B</color>
+    <color name="primary_light">#EADDFF</color>
+    <color name="accent">#4DD0E1</color>              <!-- Lighter cyan for dark mode -->
+    <color name="accent_dark">#00ACC1</color>
+
+    <!-- Text Colors - Dark Mode -->
+    <color name="text_primary">#E6E1E5</color>        <!-- Light text for dark backgrounds -->
+    <color name="text_secondary">#CAC4D0</color>      <!-- Medium light for secondary text -->
+    <color name="text_tertiary">#938F99</color>       <!-- Dimmer for tertiary text -->
+
+    <!-- Background Colors - Dark Mode -->
+    <color name="background">#141218</color>          <!-- Dark background -->
+    <color name="surface">#1D1B20</color>             <!-- Card/surface background -->
+    <color name="surface_variant">#49454F</color>     <!-- Variant surface -->
+
+    <!-- Legacy colors - Dark Mode variants -->
+    <color name="gray">#CAC4D0</color>                <!-- Light gray for dark mode -->
+    <color name="gray_light">#2B2930</color>          <!-- Dark gray for backgrounds -->
+
+    <!-- Status Colors - Dark Mode -->
+    <color name="error">#FFB4AB</color>               <!-- Lighter error red -->
+    <color name="success">#4DD0E1</color>             <!-- Light success color -->
+    <color name="warning">#FFD60A</color>             <!-- Bright warning for dark mode -->
+
+    <!-- Additional Colors - Dark Mode -->
+    <color name="outline">#938F99</color>             <!-- Dimmer borders -->
+    <color name="outline_variant">#49454F</color>     <!-- Dark borders -->
+    <color name="scrim">#000000</color>               <!-- Black overlay -->
+
+    <!-- Transparent variants -->
+    <color name="black_overlay">#80000000</color>     <!-- Black overlay -->
+    <color name="white_overlay">#40FFFFFF</color>     <!-- Dimmer white overlay for dark mode -->
+
+    <!-- NEW: Additional colors for Admin/Practice Activities - Dark Mode -->
+    <color name="accent_light">#2E4B4D</color>        <!-- Dark cyan background -->
+    <color name="transparent">#00000000</color>        <!-- Fully transparent -->
+    <color name="semi_transparent">#80000000</color>   <!-- 50% transparent black -->
+
+    <!-- Status indicator colors - Dark Mode -->
+    <color name="online">#66BB6A</color>               <!-- Lighter green for dark mode -->
+    <color name="offline">#EF5350</color>              <!-- Lighter red for dark mode -->
+    <color name="pending">#FFA726</color>              <!-- Lighter orange for dark mode -->
+
+    <!-- Practice mode specific colors - Dark Mode -->
+    <color name="practice_bg">#2A1D2E</color>          <!-- Dark purple background for practice -->
+    <color name="admin_bg">#1D2A20</color>             <!-- Dark green background for admin -->
+
+    <!-- Level progression colors - Dark Mode -->
+    <color name="locked_overlay">#40000000</color>     <!-- Dark overlay for locked items -->
+    <color name="completed_bg">#1D2A20</color>         <!-- Dark green for completed items -->
+    <color name="in_progress_bg">#2A251D</color>       <!-- Dark orange for in-progress items -->
+</resources>

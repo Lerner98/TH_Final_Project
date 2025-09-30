@@ -1,0 +1,94 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="200dp"
+            android:height="200dp"
+            android:viewportWidth="100"
+            android:viewportHeight="100">
+
+            <!-- Palm -->
+            <path
+                android:name="palm"
+                android:pathData="M50,60 Q30,60 30,40 Q30,20 50,20 Q70,20 70,40 Q70,60 50,60"
+                android:fillColor="@color/primary"
+                android:strokeColor="@color/primary_dark"
+                android:strokeWidth="2"/>
+
+            <!-- Thumb -->
+            <path
+                android:name="thumb"
+                android:pathData="M35,45 Q25,45 20,35 Q15,25 20,20 Q25,15 30,20 Q35,25 35,35"
+                android:fillColor="@color/primary"
+                android:strokeColor="@color/primary_dark"
+                android:strokeWidth="1.5"/>
+
+            <!-- Index Finger -->
+            <path
+                android:name="index"
+                android:pathData="M40,20 Q40,10 40,5 Q40,0 45,0 Q50,0 50,5 Q50,10 50,20"
+                android:fillColor="@color/primary"
+                android:strokeColor="@color/primary_dark"
+                android:strokeWidth="1.5"/>
+
+            <!-- Middle Finger -->
+            <path
+                android:name="middle"
+                android:pathData="M50,20 Q50,10 50,5 Q50,0 55,0 Q60,0 60,5 Q60,10 60,20"
+                android:fillColor="@color/primary"
+                android:strokeColor="@color/primary_dark"
+                android:strokeWidth="1.5"/>
+
+            <!-- Ring Finger -->
+            <path
+                android:name="ring"
+                android:pathData="M60,20 Q60,15 60,10 Q60,5 65,5 Q70,5 70,10 Q70,15 70,20"
+                android:fillColor="@color/primary"
+                android:strokeColor="@color/primary_dark"
+                android:strokeWidth="1.5"/>
+
+            <!-- Pinky -->
+            <path
+                android:name="pinky"
+                android:pathData="M70,25 Q70,20 70,15 Q70,10 75,10 Q80,10 80,15 Q80,20 80,25"
+                android:fillColor="@color/primary"
+                android:strokeColor="@color/primary_dark"
+                android:strokeWidth="1.5"/>
+        </vector>
+    </aapt:attr>
+
+    <!-- Animations -->
+    <target android:name="index">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="pathData"
+                android:duration="600"
+                android:valueFrom="M40,20 Q40,10 40,5 Q40,0 45,0 Q50,0 50,5 Q50,10 50,20"
+                android:valueTo="M40,20 Q40,25 40,30 Q40,35 45,35 Q50,35 50,30 Q50,25 50,20"
+                android:valueType="pathType"
+                android:repeatCount="infinite"
+                android:repeatMode="reverse"/>
+        </aapt:attr>
+    </target>
+
+    <target android:name="palm">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:propertyName="fillAlpha"
+                    android:duration="1000"
+                    android:valueFrom="0.3"
+                    android:valueTo="1.0"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse"/>
+                <objectAnimator
+                    android:propertyName="rotation"
+                    android:duration="2000"
+                    android:valueFrom="0"
+                    android:valueTo="10"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse"/>
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

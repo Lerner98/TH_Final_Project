@@ -1,0 +1,15 @@
+{
+  "lesson_id": "original",
+  "created_at": 1751187514.2828147,
+  "accuracy": 0.9838709831237793,
+  "samples_count": 620,
+  "gestures": [
+    "Yes",
+    "No",
+    "I Love You",
+    "Hello",
+    "Thank You"
+  ],
+  "num_classes": 5,
+  "admin_session": null
+}

@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">ASLearn</string>
+    <string name="title_activity_main">ASL Translator</string>
+
+    <!-- Google Sign-In -->
+    <string name="default_web_client_id">897083816677-rguiejs09ra7eg75puqrukdesgdqa78u.apps.googleusercontent.com</string>
+
+    <!-- Authentication -->
+    <string name="login_title">Welcome Back!</string>
+    <string name="register_title">Create Account</string>
+    <string name="email_hint">Email</string>
+    <string name="password_hint">Password</string>
+    <string name="name_hint">Full Name</string>
+
+    <!-- Camera -->
+    <string name="camera_permission_rationale">Camera permission is required to detect ASL gestures</string>
+
+    <!-- Learning -->
+    <string name="lesson_completed">Lesson Completed!</string>
+    <string name="practice_mode">Practice Mode</string>
+
+    <!-- General -->
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="loading">Loading...</string>
+</resources>

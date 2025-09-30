@@ -1,0 +1,14 @@
+{
+  "lesson_id": "lesson_4",
+  "created_at": 1750769726.9691746,
+  "accuracy": 1.0,
+  "samples_count": 510,
+  "gestures": [
+    "Book",
+    "Phone",
+    "Car",
+    "Home"
+  ],
+  "num_classes": 4,
+  "admin_session": "admin_level_lesson_4_1750769536687"
+}

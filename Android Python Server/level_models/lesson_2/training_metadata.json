@@ -1,0 +1,14 @@
+{
+  "lesson_id": "lesson_2",
+  "created_at": 1750766273.690372,
+  "accuracy": 1.0,
+  "samples_count": 579,
+  "gestures": [
+    "Happy",
+    "Sad",
+    "Angry",
+    "Love"
+  ],
+  "num_classes": 4,
+  "admin_session": "admin_level_lesson_2_1750766153257"
+}

@@ -1,0 +1,14 @@
+{
+  "lesson_id": "lesson_3",
+  "created_at": 1750768665.404454,
+  "accuracy": 0.9805825242718447,
+  "samples_count": 511,
+  "gestures": [
+    "Eat",
+    "Drink",
+    "Sleep",
+    "Go"
+  ],
+  "num_classes": 4,
+  "admin_session": "admin_level_lesson_3_1750768504910"
+}

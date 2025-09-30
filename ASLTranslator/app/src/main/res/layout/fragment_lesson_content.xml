@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingBottom="80dp">
+
+        <!-- Step Title -->
+        <TextView
+            android:id="@+id/tv_step_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="How to sign 'Hello'"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="?android:attr/textColorPrimary"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Gesture Image/Video -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="250dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            android:layout_marginBottom="16dp">
+
+            <ImageView
+                android:id="@+id/iv_gesture_demo"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/demo_hello" />
+
+            <!-- Play button overlay for video -->
+            <ImageView
+                android:id="@+id/iv_play_button"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:src="@drawable/ic_play_circle"
+                android:layout_gravity="center"
+                app:tint="@color/white"
+                android:elevation="4dp"
+                android:visibility="gone" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Instructions -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Instructions"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="?android:attr/textColorPrimary"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/tv_instructions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="1. Start with your dominant hand flat\n2. Place it at your forehead\n3. Move it forward and down in a gentle arc\n4. End with your palm facing forward"
+            android:textSize="16sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:lineSpacingMultiplier="1.2"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Tips Section -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="8dp"
+            app:cardBackgroundColor="#FFF9C4"
+            app:cardElevation="0dp"
+            android:layout_marginBottom="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="12dp">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_lightbulb"
+                    app:tint="#F57C00" />
+
+                <TextView
+                    android:id="@+id/tv_tips"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Tip: This gesture is similar to a salute but more relaxed"
+                    android:textSize="14sp"
+                    android:textColor="#E65100"
+                    android:layout_marginStart="8dp" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Practice Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_practice_now"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="Practice This Sign"
+            app:icon="@drawable/ic_camera"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="16dp" />
+
+    </LinearLayout>
+
+</ScrollView>

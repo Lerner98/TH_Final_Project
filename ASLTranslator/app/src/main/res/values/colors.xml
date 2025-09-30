@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors -->
+    <color name="primary">#6200EE</color>
+    <color name="primary_dark">#3700B3</color>
+    <color name="primary_light">#BB86FC</color>
+    <color name="accent">#03DAC6</color>
+    <color name="accent_dark">#018786</color>
+
+    <!-- Base Colors -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+
+    <!-- Text Colors - Light Mode -->
+    <color name="text_primary">#1C1B1F</color>        <!-- Almost black for primary text -->
+    <color name="text_secondary">#49454F</color>      <!-- Dark gray for secondary text -->
+    <color name="text_tertiary">#79747E</color>       <!-- Medium gray for tertiary text -->
+
+    <!-- Background Colors - Light Mode -->
+    <color name="background">#FFFBFE</color>          <!-- Light background -->
+    <color name="surface">#FFFFFF</color>             <!-- Card/surface background -->
+    <color name="surface_variant">#E7E0EC</color>     <!-- Variant surface -->
+
+    <!-- Legacy colors (for backward compatibility) -->
+    <color name="gray">#6B6B6B</color>                <!-- Darker gray for better contrast -->
+    <color name="gray_light">#E5E5E5</color>          <!-- Light gray for backgrounds -->
+
+    <!-- Status Colors -->
+    <color name="error">#BA1A1A</color>               <!-- Improved error red -->
+    <color name="success">#166D3B</color>             <!-- Darker green for better contrast -->
+    <color name="warning">#825500</color>             <!-- Darker orange for better contrast -->
+
+    <!-- Additional Useful Colors -->
+    <color name="outline">#79747E</color>             <!-- For borders/dividers -->
+    <color name="outline_variant">#CAC4D0</color>     <!-- Light borders -->
+    <color name="scrim">#000000</color>               <!-- Overlay -->
+
+    <!-- Transparent variants -->
+    <color name="black_overlay">#80000000</color>     <!-- 50% black overlay -->
+    <color name="white_overlay">#80FFFFFF</color>     <!-- 50% white overlay -->
+
+    <!-- NEW: Additional colors for Admin/Practice Activities -->
+    <color name="accent_light">#E0F7FA</color>        <!-- Light cyan background -->
+    <color name="transparent">#00000000</color>        <!-- Fully transparent -->
+    <color name="semi_transparent">#80000000</color>   <!-- 50% transparent black -->
+
+    <!-- Status indicator colors -->
+    <color name="online">#4CAF50</color>               <!-- Green for online status -->
+    <color name="offline">#F44336</color>              <!-- Red for offline status -->
+    <color name="pending">#FF9800</color>              <!-- Orange for pending status -->
+
+    <!-- Practice mode specific colors -->
+    <color name="practice_bg">#F3E5F5</color>          <!-- Light purple background for practice -->
+    <color name="admin_bg">#E8F5E8</color>             <!-- Light green background for admin -->
+
+    <!-- Level progression colors -->
+    <color name="locked_overlay">#80FFFFFF</color>     <!-- White overlay for locked items -->
+    <color name="completed_bg">#E8F5E8</color>         <!-- Light green for completed items -->
+    <color name="in_progress_bg">#FFF3E0</color>       <!-- Light orange for in-progress items -->
+</resources>

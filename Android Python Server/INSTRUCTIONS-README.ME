@@ -1,0 +1,22 @@
+### OPEN ENVIROMENT
+.\.venv\Scripts\activate
+
+### RUN THE SERVER
+python main.py
+
+### TO CREATE .venv
+C:\Users\guyle\AppData\Local\Programs\Python\Python310\python.exe -m venv .venv\
+C:\Users\danie\AppData\Local\Programs\Python\Python310\python.exe -m venv .venv\
+
+### TO DELETE .venv
+Remove-Item -Recurse -Force .venv
+
+### TO DOWNLOAD REQUIERMENTS
+pip install -r requirements.txt 
+
+### TO KILL A TASK
+taskkill /PID (pid) /F
+
+### TO FIND SERVER 8001
+netstat -ano | findstr :8001
+tasklist | findstr 10056

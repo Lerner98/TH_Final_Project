@@ -1,0 +1,28 @@
+2025-08-23 18:31:08.242216: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING:tensorflow:From C:\TransltionHubFinalVer 8.20.25\ASLearn\Android Python Server\.venv\lib\site-packages\keras\src\losses.py:2976: The name tf.losses.sparse_softmax_cross_entropy is deprecated. Please use tf.compat.v1.losses.sparse_softmax_cross_entropy instead.
+
+INFO:__main__:Attempting to load model from: C:\TransltionHubFinalVer 8.20.25\ASLearn\Android Python Server\models\asl_model_tf
+INFO:__main__:TensorFlow version: 2.15.0
+INFO:__main__:TensorFlow module path: C:\TransltionHubFinalVer 8.20.25\ASLearn\Android Python Server\.venv\lib\site-packages\tensorflow\__init__.py
+INFO:__main__:Model file exists, loading...
+INFO: Created TensorFlow Lite XNNPACK delegate for CPU.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+W0000 00:00:1755963075.135157    2344 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.
+W0000 00:00:1755963075.166791   22036 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.
+WARNING:tensorflow:From C:\TransltionHubFinalVer 8.20.25\ASLearn\Android Python Server\.venv\lib\site-packages\keras\src\saving\legacy\saved_model\load.py:107: The name tf.gfile.Exists is deprecated. Please use tf.io.gfile.exists instead.
+
+WARNING:tensorflow:From C:\TransltionHubFinalVer 8.20.25\ASLearn\Android Python Server\.venv\lib\site-packages\keras\src\saving\legacy\saved_model\load.py:107: The name tf.gfile.Exists is deprecated. Please use tf.io.gfile.exists instead.
+
+2025-08-23 18:31:15.577547: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE SSE2 SSE3 SSE4.1 SSE4.2 AVX2 AVX_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING:tensorflow:From C:\TransltionHubFinalVer 8.20.25\ASLearn\Android Python Server\.venv\lib\site-packages\keras\src\utils\tf_utils.py:585: The name tf.executing_eagerly_outside_functions is deprecated. Please use tf.compat.v1.executing_eagerly_outside_functions instead.
+
+WARNING:tensorflow:From C:\TransltionHubFinalVer 8.20.25\ASLearn\Android Python Server\.venv\lib\site-packages\keras\src\utils\tf_utils.py:585: The name tf.executing_eagerly_outside_functions is deprecated. Please use tf.compat.v1.executing_eagerly_outside_functions instead.
+
+INFO:__main__:\u2705 TensorFlow model loaded successfully
+INFO:level_model_manager:Practice mode manager initialized with model loading capability
+INFO:__main__:\U0001f680 Starting Enhanced ASL Server with Admin Controls...
+INFO:     Started server process [26760]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
