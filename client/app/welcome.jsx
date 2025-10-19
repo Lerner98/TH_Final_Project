@@ -42,13 +42,13 @@ const WelcomeScreen = () => {
     }
   }, []);
 
-  // ✅ ADD THIS AUTOMATIC TEST ON MOUNT
-  useEffect(() => {
-    console.log('[WelcomeScreen] Component mounted - testing error reporting...');
-    setTimeout(() => {
-      testErrorReporting();
-    }, 2000); // Wait 2 seconds then test
-  }, [testErrorReporting]);
+  // // ✅ ADD THIS AUTOMATIC TEST ON MOUNT
+  // useEffect(() => {
+  //   console.log('[WelcomeScreen] Component mounted - testing error reporting...');
+  //   setTimeout(() => {
+  //     testErrorReporting();
+  //   }, 2000); // Wait 2 seconds then test
+  // }, [testErrorReporting]);
 
   // Redirect if already authenticated with delay
   useEffect(() => {
@@ -96,14 +96,14 @@ const WelcomeScreen = () => {
       </Text>
 
       {/* ✅ ADD THIS TEST BUTTON */}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={[styles.button, { backgroundColor: 'orange' }]}
         onPress={testErrorReporting}
         accessibilityLabel="Test error reporting"
         accessibilityRole="button"
       >
         <Text style={styles.buttonText}>🧪 Test Error Reporting</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       <TouchableOpacity
         style={[styles.button, { 

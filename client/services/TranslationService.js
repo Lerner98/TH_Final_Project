@@ -94,20 +94,35 @@ const TranslationService = {
    * @throws {Error} If transcription fails.
    */
   speechToText: async (audioUri, sourceLang, signedSessionId) => {
-    const formData = new FormData();
-    formData.append('audio', {
-      uri: audioUri,
-      name: 'recording.m4a',
-      type: 'audio/m4a',
-    });
-    formData.append('sourceLang', sourceLang);
+  const formData = new FormData();
+  formData.append('audio', {
+    uri: audioUri,
+    name: 'recording.m4a',
+    type: 'audio/m4a',
+  });
+  formData.append('sourceLang', sourceLang);
 
-    const response = await ApiService.post(API_ENDPOINTS.SPEECH_TO_TEXT, formData, signedSessionId);
-    if (response.success && response.data) {
-      return response.data.text || '';
+  try {
+    const response = await fetch(`${Constants.TRANSLATION_API_URL}/speech-to-text`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${signedSessionId}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Server error: ${response.status}`);
     }
-    throw new Error(response.error || ERROR_MESSAGES.SPEECH_TO_TEXT_FAILED);
-  },
+
+    const data = await response.json();
+    return data.text || '';
+  } catch (error) {
+    console.error('[TranslationService] speechToText error:', error);
+    throw new Error(error.message || Constants.ERROR_MESSAGES.SPEECH_TO_TEXT_FAILED);
+  }
+},
 
   /**
    * Convert text to audio (text-to-speech).

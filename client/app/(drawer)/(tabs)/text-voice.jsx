@@ -514,63 +514,64 @@ const TextVoiceInput = React.memo(({ t, isDarkMode, session, sourceLang, setSour
   };
 
   const stopRecording = async () => {
-    if (!recording) {
-      setIsRecording(false);
+  if (!recording) {
+    setIsRecording(false);
+    setIsLoading(false);
+    return;
+  }
+
+  setIsRecording(false);
+  setIsLoading(true);
+  setError('');
+
+  try {
+    await recording.stopAndUnloadAsync();
+    const status = await recording.getStatusAsync();
+
+    if (!status || status.durationMillis < 1000) {
+      setError(t('error') + ': ' + Constants.ERROR_MESSAGES.TRANSLATION_RECORDING_TOO_SHORT);
+      setToastVisible(true);
+      setRecording(null);
       setIsLoading(false);
       return;
     }
 
-    setIsRecording(false);
-    setIsLoading(true);
-    setError('');
-
-    try {
-      await recording.stopAndUnloadAsync();
-      const status = await recording.getStatusAsync();
-
-      if (!status || status.durationMillis < 1000) {
-        setError(t('error') + ': ' + Constants.ERROR_MESSAGES.TRANSLATION_RECORDING_TOO_SHORT);
-        setToastVisible(true);
-        setRecording(null);
-        setIsLoading(false);
-        return;
-      }
-
-      const uri = recording.getURI();
-      if (!uri || !uri.startsWith('file://')) {
-        setError(t('error') + ': ' + Constants.ERROR_MESSAGES.TRANSLATION_INVALID_AUDIO_PATH);
-        setToastVisible(true);
-        setRecording(null);
-        setIsLoading(false);
-        return;
-      }
-
-      // ✅ FIXED: Use existing speech-to-text service
-      const transcribedText = await TranslationService.speechToText(
-        uri,
-        sourceLang,
-        session?.signed_session_id
-      );
-      if (!transcribedText) {
-        throw new Error('Speech-to-text failed');
-      }
-
-      setInputText(transcribedText);
-      await handleTranslate(transcribedText, true);
-    } catch (err) {
-      const errorMessage = Helpers.handleError(err);
-      if (errorMessage.includes('Invalid or expired session') && session) {
-        await signOut();
-        setError(t('error') + ': Your session has expired. Please log in again.');
-        setToastVisible(true);
-      } else {
-        setError(t('error') + ': ' + errorMessage);
-      }
-    } finally {
+    const uri = recording.getURI();
+    if (!uri || !uri.startsWith('file://')) {
+      setError(t('error') + ': ' + Constants.ERROR_MESSAGES.TRANSLATION_INVALID_AUDIO_PATH);
+      setToastVisible(true);
       setRecording(null);
       setIsLoading(false);
+      return;
     }
-  };
+
+    // Pass the URI directly - NO base64 conversion
+    const transcribedText = await TranslationService.speechToText(
+      uri,
+      sourceLang,
+      session?.signed_session_id
+    );
+    
+    if (!transcribedText) {
+      throw new Error('Speech-to-text failed');
+    }
+
+    setInputText(transcribedText);
+    await handleTranslate(transcribedText, true);
+  } catch (err) {
+    const errorMessage = Helpers.handleError(err);
+    if (errorMessage.includes('Invalid or expired session') && session) {
+      await signOut();
+      setError(t('error') + ': Your session has expired. Please log in again.');
+      setToastVisible(true);
+    } else {
+      setError(t('error') + ': ' + errorMessage);
+    }
+  } finally {
+    setRecording(null);
+    setIsLoading(false);
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -755,13 +756,17 @@ const TextVoiceTranslationScreen = () => {
   }, [preferences]);
 
   const recentTranslations = useMemo(() => {
-    if (session) {
-      return [...recentTextTranslations, ...recentVoiceTranslations].slice(-5);
-    } else {
-      const guestRecent = guestTranslations.filter(item => item.type === 'text' || item.type === 'voice');
-      return guestRecent.slice(-5);
-    }
-  }, [session, recentTextTranslations, recentVoiceTranslations, guestTranslations]);
+  if (session) {
+    const textOnly = recentTextTranslations.filter(item => item.type === 'text');
+    const voiceOnly = recentVoiceTranslations.filter(item => item.type === 'voice');
+    return [...textOnly, ...voiceOnly].slice(-5);
+  } else {
+    const guestRecent = guestTranslations.filter(item => 
+      item.type === 'text' || item.type === 'voice'
+    );
+    return guestRecent.slice(-5);
+  }
+}, [session, recentTextTranslations, recentVoiceTranslations, guestTranslations]);
 
   return (
     <View style={[styles.container, { backgroundColor: isDarkMode ? Constants.SCREEN.BACKGROUND_COLOR_DARK : Constants.COLORS.BACKGROUND }]}>

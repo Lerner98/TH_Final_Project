@@ -95,15 +95,28 @@ class TranslationController {
    * Detect file type from Base64 prefix
    */
   detectFileExtensionFromBase64(base64String) {
-    const prefix = base64String.slice(0, 50);
-    if (prefix.includes('application/pdf')) return 'pdf';
-    if (prefix.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) return 'docx';
-    if (prefix.includes('application/msword')) return 'docx';
-    if (prefix.includes('text/plain')) return 'txt';
-    if (prefix.includes('UEsDB')) return 'docx';
-    if (prefix.startsWith('%PDF')) return 'pdf';
-    return '';
+  // Check if it's a data URL and extract the actual base64 content
+  let actualBase64 = base64String;
+  
+  if (base64String.includes('data:') && base64String.includes('base64,')) {
+    const parts = base64String.split('base64,');
+    const mimeType = parts[0];
+    actualBase64 = parts[1];
+    
+    // Check mime type first
+    if (mimeType.includes('application/pdf')) return 'pdf';
+    if (mimeType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document')) return 'docx';
+    if (mimeType.includes('application/msword')) return 'docx';
+    if (mimeType.includes('text/plain')) return 'txt';
   }
+  
+  // Check the actual base64 content (first 50 chars)
+  const prefix = actualBase64.slice(0, 50);
+  if (prefix.startsWith('UEsDB')) return 'docx';
+  if (prefix.startsWith('JVBER') || prefix.startsWith('%PDF')) return 'pdf';
+  
+  return '';
+}
 
   /**
    * Translates text between languages using OpenAI with automatic language detection
@@ -329,36 +342,42 @@ class TranslationController {
    * Extract text from a file with different formats (PDF, DOCX, TXT) 
    */
   async extractText(req, res) {
-    console.log('[Translation Service] POST /extract-text');
+  console.log('[Translation Service] POST /extract-text');
 
-    const { uri } = req.body;
-    if (!uri) {
-      return res.status(400).json({ error: ERROR_MESSAGES.FILE_URI_REQUIRED });
-    }
-
-    try {
-      const buffer = Buffer.from(uri, 'base64');
-      const extension = this.detectFileExtensionFromBase64(uri);
-
-      if (extension === 'pdf') {
-        const textData = await pdfParse(buffer);
-        return res.json({ text: textData.text });
-      }
-
-      if (extension === 'docx') {
-        const result = await mammoth.extractRawText({ buffer });
-        return res.json({ text: result.value });
-      }
-
-      if (extension === 'txt') {
-        return res.json({ text: buffer.toString('utf-8') });
-      }
-
-      return res.status(400).json({ error: ERROR_MESSAGES.UNSUPPORTED_FILE_TYPE });
-    } catch (err) {
-      return res.status(500).json({ error: ERROR_MESSAGES.FAILED_TO_EXTRACT_TEXT });
-    }
+  const { uri } = req.body;
+  if (!uri) {
+    return res.status(400).json({ error: ERROR_MESSAGES.FILE_URI_REQUIRED });
   }
+
+  try {
+    // Extract actual base64 content if it's a data URL
+    let base64Content = uri;
+    if (uri.includes('base64,')) {
+      base64Content = uri.split('base64,')[1];
+    }
+    
+    const buffer = Buffer.from(base64Content, 'base64');
+    const extension = this.detectFileExtensionFromBase64(uri);
+
+    if (extension === 'pdf') {
+      const textData = await pdfParse(buffer);
+      return res.json({ text: textData.text });
+    }
+
+    if (extension === 'docx') {
+      const result = await mammoth.extractRawText({ buffer });
+      return res.json({ text: result.value });
+    }
+
+    if (extension === 'txt') {
+      return res.json({ text: buffer.toString('utf-8') });
+    }
+
+    return res.status(400).json({ error: ERROR_MESSAGES.UNSUPPORTED_FILE_TYPE });
+  } catch (err) {
+    return res.status(500).json({ error: ERROR_MESSAGES.FAILED_TO_EXTRACT_TEXT });
+  }
+}
 
   /**
    * Creates a Word document from text content and returns it as download

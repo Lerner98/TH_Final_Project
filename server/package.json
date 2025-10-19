@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "concurrently": "concurrently --prefix \"[{name}]\" --names \"Gateway,Auth,Translation,UserData\" --prefix-colors \"cyan,green,yellow,magenta\" \"node services/gateway.js\" \"node services/authService.js\" \"node services/translation.js\" \"node services/userDataService.js\"",
-    "dev": "concurrently --prefix \"[{name}]\" --names \"Gateway,Auth,Translation,UserData\" --prefix-colors \"cyan,green,yellow,magenta\" \"nodemon services/gateway.js\" \"nodemon services/authService.js\" \"nodemon services/translation.js\" \"nodemon services/userDataService.js\"",
+    "dev": "concurrently --prefix \"[{name}]\" --names \"Auth,Translation,UserData\" --prefix-colors \"green,yellow,magenta\" \"nodemon services/authService.js\" \"nodemon services/translation.js\" \"nodemon services/userDataService.js\"",
     "monolith": "node monolith/server.js",
     "monolith-dev": "nodemon monolith/server.js",
     "kill-ports": "npx kill-port 3000 3001 3002 3003"
