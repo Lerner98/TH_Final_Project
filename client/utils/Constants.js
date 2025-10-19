@@ -1,16 +1,16 @@
 const Constants = {
   // 🔌 WebSocket URL for ASL Translation
-  WEBSOCKET_URL: 'ws://10.100.102.16:8000/asl-ws',
+  WEBSOCKET_URL: 'ws://192.168.1.224:8000/asl-ws',
 
     // 🔌 MDB Reports Server URL
-  MDB_SERVER_URL: 'http://10.100.102.16:3005',  
+  MDB_SERVER_URL: 'http://192.168.1.224:3005',  
   // 🔑 MDB API KEY
   MDB_API_KEY: 'a6ac6357-ef7a-44bd-af98-0dc56dc789eb',
 
-  // 🌐 API Base URL - network IP for React Native
-  AUTH_API_URL: 'http://10.100.102.16:3001',
-  TRANSLATION_API_URL: 'http://10.100.102.16:3002',
-  USER_DATA_API_URL: 'http://10.100.102.16:3003',
+  // 🌐 API Base URL - network IP for React Nativea
+  AUTH_API_URL: 'http://192.168.1.224:3001',
+  TRANSLATION_API_URL: 'http://192.168.1.224:3002',
+  USER_DATA_API_URL: 'http://192.168.1.224:3003',
   
   // ⚙️ API Configuration
   API_TIMEOUT: 10000, // API request timeout in milliseconds (10 seconds)

@@ -77,7 +77,7 @@ db.reports.find().sort({createdAt: -1}).limit(1)
   message: "Manual test from Welcome screen",
   errorStack: "Error: Manual test from Welcome screen...",
   screen: "WelcomeScreen",
-  platform: "android", // or "ios"
+  platform: "android", 
   appVersion: "1.0.0",
   deviceInfo: {
     model: "Pixel 6",
