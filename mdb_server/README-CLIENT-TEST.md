@@ -8,7 +8,7 @@ This guide shows how to demonstrate the **real-time error reporting** from your 
 
 ## 🎯 **Demo Overview**
 
-Your React Native app automatically captures and sends error reports to your MDB server, which stores them in MongoDB with rich contextual data.
+The React Native app automatically captures and sends error reports to your MDB server, which stores them in MongoDB with rich contextual data.
 
 ---
 
@@ -23,10 +23,10 @@ Your React Native app automatically captures and sends error reports to your MDB
 ## Terminal Setup
 ```bash
 # Terminal 1
-mongod --port 27017 --dbpath C:\data\db --auth
+mongod --port 27017 --dbpath C:\data\db --auth // (Authenticating into the mongod depending on your own location of the data file)
 
 # Terminal 2  
-cd C:\TH_Final_Test\mdb_server
+cd C:\Project_File_Location\mdb_server
 node server.js
 
 # Terminal 3
@@ -34,7 +34,7 @@ cd C:\TH_Final_Test\your-app-name
 npx expo start
 
 # Terminal 4
-mongosh mongodb://adminUser:adminPass123@127.0.0.1:27017/admin
+mongosh mongodb://adminUser:adminPass123@127.0.0.1:27017/admin  // (Any admin password you set in the db)
 ```
 
 ---
@@ -148,7 +148,7 @@ db.reports.find({"extra.testSource": "welcome_button"}).sort({createdAt: -1})
 
 ---
 
-## ✅ **Success Criteria for Demo**
+## ✅ **Success Criteria **
 
 The demo is successful when you can show:
 
@@ -157,20 +157,6 @@ The demo is successful when you can show:
 3. ✅ **New report in MongoDB**
 4. ✅ **Rich device and context data**
 5. ✅ **Precise timestamps matching button press**
-
----
-
-## 🎓 ** Demo Script**
-
-*"This demonstrates our production-ready error reporting system. When users encounter errors in our Translation Hub app, the system automatically captures detailed information and sends it to our MongoDB database for analysis."*
-
-1. **Show the button** → "I'll simulate an error report"
-2. **Click button** → "The app just sent an error report"
-3. **Show database** → "And here it is in our database instantly"
-4. **Highlight data** → "Notice the rich device information, timestamps, and context"
-5. **Explain benefits** → "This helps us identify and fix issues before users report them"
-
-**Demo Duration:** 2-3 minutes
 
 ---
 
