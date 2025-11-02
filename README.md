@@ -1,10 +1,10 @@
 # TranslationHub
 
-A full-stack translation application with support for text, voice, camera OCR, file processing, and real-time ASL recognition.
+A full-stack translation application with support for text, voice, camera OCR, file processing, and real-time ASL recognition and live translation.
 
 ## Overview
 
-TranslationHub is a React Native mobile application with a Node.js/Python backend that provides multi-modal translation services using OpenAI APIs. The application supports both authenticated users with unlimited translations and guest users with daily limits.
+TranslationHub is a React Native mobile application with a Node.js/Python backend that provides multi-modal translation services using OpenAI APIs. The application supports both authenticated users and guest users.
 
 **Key Features:**
 - Text and voice translation (50+ languages)
@@ -17,7 +17,7 @@ TranslationHub is a React Native mobile application with a Node.js/Python backen
 
 - **Client:** React Native (Expo) mobile app
 - **Backend:** Node.js microservices (Auth, Translation, User Data) + Python WebSocket server for ASL
-- **Database:** Microsoft SQL Server
+- **Database:** Microsoft SQL Server, MongoDB for error loggings. 
 - **AI Services:** OpenAI (GPT-4, Whisper, TTS)
 
 ## Installation
