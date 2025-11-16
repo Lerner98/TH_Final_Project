@@ -26,7 +26,7 @@ Native Android application for learning American Sign Language through real-time
 - **Gamified Learning** - 6 unlockable achievements with Firebase progress tracking
 - **Practice Modes** - Single-sign mastery (5 correct detections) or full-level practice
 - **AI Model Training** - Advanced users can train custom gesture models
-- **Smart Networking** - Auto-detects home/school/emulator environments
+- **Adaptive Networking** - Auto-detects development environment configurations
 
 ## 🏗️ Tech Stack
 
@@ -46,7 +46,7 @@ Native Android application for learning American Sign Language through real-time
 ├── fragments/         # LessonContentFragment for step-by-step instructions
 ├── models/            # Lesson, Achievement, GestureResponse data classes
 ├── network/           # WebSocketManager for real-time server communication
-└── utils/             # AchievementManager, Constants (auto IP detection)
+└── utils/             # AchievementManager, Constants (network configuration)
 ```
 
 ## 🛠️ Quick Start
@@ -61,13 +61,12 @@ git checkout Android-Native-App
 2. **Open in Android Studio** and sync Gradle dependencies
 
 3. **Add Firebase config:**
-   - Place `google-services.json` in `app/` directory
+   - Download `google-services.json` from Firebase Console
+   - Place in `app/` directory
 
-4. **Configure server IP** in `Constants.java`:
-```java
-private static final String HOME_IP = "YOUR_SERVER_IP";  // Default: 10.100.102.11
-private static final int DEV_PORT = 8001;
-```
+4. **Configure backend server:**
+   - Update server endpoint in `Constants.java`
+   - Ensure Python ML server is running (see `Android Python Server/` folder)
 
 5. **Run** on device/emulator (requires camera permissions)
 
@@ -94,11 +93,6 @@ Early Bird • First Steps • Speed Learner • Consistency Champion • AI Tra
 3. Commit changes (`git commit -m 'Add NewFeature'`)
 4. Push to branch (`git push origin feature/NewFeature`)
 5. Open Pull Request
-
-## 👨‍💻 Author
-
-**Guy Lerner** - Practical Software Engineering Graduate (Ruppin Academic Center)  
-[GitHub](https://github.com/Lerner98) • [LinkedIn](https://linkedin.com/in/guylerner)
 
 ---
 
