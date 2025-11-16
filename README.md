@@ -15,6 +15,7 @@ Native Android application for learning American Sign Language through real-time
 <p align="center">
 <img src="screenshots/splashscreen.png" alt="Splash Screen" width="180" />
 <img src="screenshots/mainmenu.png" alt="Main Menu" width="180" />
+<img src="screenshots/login.png" alt="Login" width="180" />
 <img src="screenshots/lessons.png" alt="Lessons" width="180" />
 <img src="screenshots/learning.png" alt="Learning" width="180" />
 </p>
