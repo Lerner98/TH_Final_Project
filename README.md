@@ -13,11 +13,11 @@ Native Android application for learning American Sign Language through real-time
 ## 📱 App Preview
 
 <p align="center">
-<img src="screenshots/splashscreen.png" alt="Splash Screen" width="180" />
-<img src="screenshots/mainmenu.png" alt="Main Menu" width="180" />
-<img src="screenshots/login.png" alt="Login" width="180" />
-<img src="screenshots/lessons.png" alt="Lessons" width="180" />
-<img src="screenshots/learning.png" alt="Learning" width="180" />
+<img src="screenshots/splashscreen.jpg" alt="Splash Screen" width="180" />
+<img src="screenshots/mainmenu.jpg" alt="Main Menu" width="180" />
+<img src="screenshots/login.jpg" alt="Login" width="180" />
+<img src="screenshots/lessons.jpg" alt="Lessons" width="180" />
+<img src="screenshots/learning.jpg" alt="Learning" width="180" />
 </p>
 
 ## 🚀 Features
