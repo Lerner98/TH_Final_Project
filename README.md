@@ -7,9 +7,6 @@ A full-stack, cross-platform translation app with support for text, voice, camer
 </p>
 <p>
 <!-- Professional Badges -->
-<a href="https://github.com/Lerner98/TH_Final_Project/actions">
-<img src="https://img.shields.io/github/actions/workflow/status/Lerner98/TH_Final_Project/node.js.yml?branch=main&style=for-the-badge" alt="Build Status" />
-</a>
 <a href="https://github.com/Lerner98/TH_Final_Project/issues">
 <img src="https://img.shields.io/github/issues/Lerner98/TH_Final_Project?style=for-the-badge" alt="Issues" />
 </a>
