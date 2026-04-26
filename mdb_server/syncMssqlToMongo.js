@@ -57,8 +57,10 @@ const AuditLogs = mongoose.model('AuditLogs', new mongoose.Schema({
 // Configure axios retries
 axiosRetry(axios, { retries: 3, retryDelay: (retryCount) => retryCount * 1000 });
 
-// MongoDB Connection
-mongoose.connect('mongodb://adminUser:adminPass123@127.0.0.1:27017/translationhub?authSource=admin', {
+// MongoDB Connection (override via MONGO_URI env var; default is local dev)
+const mongoUri = process.env.MONGO_URI ||
+  'mongodb://adminUser:adminPass123@127.0.0.1:27017/translationhub?authSource=admin';
+mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 });
